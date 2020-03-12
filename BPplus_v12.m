@@ -133,10 +133,6 @@ ao_p_av = fillmissing(aa,'spline')';      % use fillmissing to fill with a splin
 p=ao_p_av(yy:end);
 [ao_ai, aoPi, aoTfoot, aoTi, aoTmax, aoTypetxt] = ai_v1(p, samplerate);
 
-%% calculate SEVR (aortic and brachial)
-ao_sevr=trapz(ao_p_av(lsys+1:end))/trapz(ao_p_av(1:lsys));
-ba_sevr=trapz(ba_p_av(lsys+1:end))/trapz(ba_p_av(1:lsys));
-
 %% calculate some more measures
 [~, Tpeaks]=findpeaks(diff(p), 'Npeaks', 3);    % peaks of dP
 aosbp2=p(Tpeaks(2));          % this is more reliable than 3rd zero crossing of 4th derivative
@@ -149,7 +145,7 @@ ao_dpdt=max(diff(p))*samplerate;
 aofitb_av, aorsq_av]=BPfitres_v1(p,samplerate);  
 aoPxs=aoP_av-aoPr_av;
 
-%% do AIx reservoir calculations for brachial pressure
+%% do reservoir calculations for brachial pressure
 % assign p to pass to function
 p=ba_p_av';
 [baTn_av, baPinf_av, baP_av,baPr_av,baPn_av, bafita_av,...
@@ -163,6 +159,13 @@ ba_ai=100*(ba_sbp2-dbp)/(ba_sbp-dbp); % peripheral augmentation index, %
 %[~,ba_Td]=min(diff(p));            % Duplicate
 % ba_es=p(ba_Td);
 ba_dpdt=max(diff(p))*samplerate;
+
+%% calculate SEVR (aortic and brachial)
+% aoTn and baTn are not necessarily the same - which is better is uncertain
+lsys=round(aoTn_av*samplerate);
+ao_sevr=trapz(ao_p_av(lsys+1:end))/trapz(ao_p_av(1:lsys));
+lsys=round(baTn_av*samplerate);
+ba_sevr=trapz(ba_p_av(lsys+1:end))/trapz(ba_p_av(1:lsys));
 
 %% Create estimates of Pf and Pb using the assumption that Pb = cPr/2
 aoPb_av=(aoPr_av-min(aoP_av))/2;
