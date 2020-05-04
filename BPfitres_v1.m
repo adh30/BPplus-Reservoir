@@ -1,5 +1,5 @@
-%% fitres_v5 - batch analysis of radial pulse data using kreservoir_vXX by KHP
-%  Copyright 2019 Alun Hughes
+%% BPfitres_v1 - batch analysis of brachial BP data using kreservoir_vXX by KHP
+%  Copyright 2020 Alun Hughes
 %  This software is distributed under under the terms of the GNU General Public License
 %  This program is free software: you can redistribute it and/or modify
 %  it under the terms of the GNU General Public License as published by
