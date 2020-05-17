@@ -1,5 +1,5 @@
-%% BPfitres_v1 - batch analysis of brachial BP data using kreservoir_vXX by KHP
-%  Copyright 2020 Alun Hughes
+%% BPfitres_v1 - batch analysis of BPplus data using kreservoir_vXX by KHP
+%  Copyright 2019 Alun Hughes
 %  This software is distributed under under the terms of the GNU General Public License
 %  This program is free software: you can redistribute it and/or modify
 %  it under the terms of the GNU General Public License as published by
@@ -13,7 +13,8 @@
 % http://www.gnu.org/licenses/gpl.html
 
 %% Versions
-% v1 First stable version(03/01/20) based on fitres_v5
+% v1 First stable version(03/01/20) based on fitres_v5 and uses
+% kreserovir_v14
 %%
 function  [Tn_av, Pinf_av, P_av,Pr_av,Pn_av,...
     fita_av, fitb_av,rsq_av]=BPfitres_v1(p_av,samplerate) 
@@ -34,7 +35,7 @@ function  [Tn_av, Pinf_av, P_av,Pr_av,Pn_av,...
     
    
     % fit average beat using kreservoir
-    [Pr_av,fita_av,fitb_av,Pinf_av, Tn_av,Pn_av]=kreservoir_v13(P_av,T_av);
+    [Pr_av,fita_av,fitb_av,Pinf_av, Tn_av,Pn_av]=kreservoir_v14(P_av,T_av);
 
     % Calculate R^2 (cofficient determination) for Pr fit in diastole
     xn=round(Tn_av*samplerate);         % parameters for length diastole for R2
