@@ -1,4 +1,4 @@
-% BPplus_v12
+% bRes_bpp
 %% batch analysis of BP+ to give results like Sphygmocor
 %  and do reservoir analysis using kreservoir_vXX 
 %% Copyright 2019 Alun Hughes based on original code by Kim Parker
@@ -24,26 +24,26 @@
 %  v0.12 (03/01/20) save results in excel file and achieve concordance
 %  with batch reservoir v13 (sphygmocor) except for HRV
 %  v0.12 (07/03/20) add SEVR [Buckberg index] calculation and add quality index to output
-%  v0.2 (17/05/20) Fix various bugs. Add ao and ba waveforms. Improve peak detection. Some error traps.  
+%  v0.2 (17/05/20)  Fix various bugs. Add ao and ba waveforms. Improve peak detection. Some error traps.
+%  v1.0beta (23/05/20)  updated Savitzky Golay estimation of derivatives,
+%  plus a few minor bug fixes. Now better aligned with bRes_sp (Sphygmocor)
 %%%%%%%%%%%%%%%% 
 %% m files required to be in directory
 % ai_v1
 % xml2struct
 % fitres_v5
 % kreservoir_v14
-% fsg721
 %%%%%%%%%%%%%%%%
 %% Constants
     kres_v='v14';          % Version tracking for reservoir fitting
     headernumber=53;       % headers for columns of results (see end)
     mmHgPa = 133;          % P conversion for WIA
     uconst=1;              % empirical constant to convert normalized velocity to m/s
-    framelen=9;            % framelength for Savitzky Golay filter for  
-                           % imported aortic BP based on (Rivolo et al.  
+    Npoly=3;               % Order of polynomial fit for sgolay
+    Frame=9;               % Window length for sgolay based on (Rivolo et al.  
                            % IEEE Engineering in Medicine and Biology Society 
                            % Annual Conference 2014; 2014: 5056-9.
-    order = 3;             % order for Savitzky Golay filter for imported aortic BP
-    
+    version='1beta';       % Version of bRes_bpp    
 %% Select files
 folder_name ='C:\BPPdata\'; % standard directory
 % check that C:\BPPdata\ exists and if not allows new folder to be chosen
@@ -183,7 +183,7 @@ locmin2=locmin2+locmin1+50;
 % plot(a(locmin1:locmin2));
 
 % filter derivative of new beat with SG to get rid of kinks at or around join
-aa = sgolayfilt(diff(a),order,framelen); % filter the derivative - order and framelen defined above
+aa = sgolayfilt(diff(a),Npoly,Frame); % filter the derivative - order and framelen defined above
 a1=cumsum(aa)-min(cumsum(aa))+min(a);    % reconstruct   
 ao_p_av =a1(locmin1:locmin2-1)';         % crop to cycle   
 clear a0 a aa a1;
@@ -236,18 +236,6 @@ Pb_Pf=max(aoPb_av)/max(aoPf_av);
 RI=max(aoPb_av)/(max(aoPf_av)+ max(aoPb_av));
 
 %% wave intensity analysis (only done on central P)
-% currently using Savitzky Golay (fsg721)[this differs from the Sphygmocor
-% program which just uses diff
-% a bit of tweaking to get WIA to work given the windows for the
-% derivatives - use a 9 sample shift should work for fsg721
-
-% p=aoP_av;
-% p(9:end)=aoP_av(1:end-8);
-% p(1)=min(aoP_av);
-% p(2:8)= nan;
-% p=fillmissing(p,'spline')';         % fill missing data
-
-dp=fsg721(aoP_av);
 % convert Pxs to flow velocity and assume peak velocity = 1m/s
 % based on Lindroos, M., et al. J Am Coll Cardiol 1993; 21: 1220-1225.
 cu=uconst*(aoPxs/max(aoPxs));
@@ -256,14 +244,21 @@ u(9:end)=cu(1:end-8);
 u(1:3)=0;
 u(4:9)= nan;
 u=fillmissing(u,'spline')';
-
-% duxs=gradient(cu);
-duxs=fsg721(u');
-% % check alignment duxs, dp
-% [~, x1]=max(dp);
-% [~, x2]=max(duxs);
-% sh=x1-x2;
-% duxs(sh+1:end)=duxs(1:end-sh);
+u=u';   %
+% calculate derivatives using S-G
+    [b,g]=sgolay(Npoly,Frame);   % Calculate S-G coefficients
+    HalfWin=((Frame+1)/2) -1;
+    N=length(aoP_av);
+    dp=zeros(N,1); duxs=dp;
+    for n=(Frame+1)/2:N-(Frame+1)/2
+    % Zero-th derivative (smoothing only)
+%     ps(n)=dot(g(:,1),p(n-HalfWin:n+HalfWin));
+%     us(n)=dot(g(:,1),u(n-HalfWin:n+HalfWin));
+    % 1st differential
+    dp(n)=dot(g(:,2),aoP_av(n-HalfWin:n+HalfWin));    % pressure difference
+    duxs(n)=dot(g(:,2),u(n-HalfWin:n+HalfWin)); % velocity difference
+    end
+    
 di=dp.*duxs;
 di=di*mmHgPa*length(dp)^2;      % units fixed - now in W/m2 per cycle^2
   
@@ -283,7 +278,7 @@ if dippks(1)<maxpeak
 end
 
 [dimpks,dimlocs,dimw]=findpeaks(-di(1:lsys), 'NPeaks',1,'MinPeakHeight',0.7*max(-di)); % find one dI- peaks (Wb)
-[dippks(2),diplocs(2), dipw(2)]=findpeaks(fliplr(di(1:lsys)), 'NPeaks',1,'MinPeakHeight',minpeak); % find 2nd dI+ peaks (Wf2) by flipping the data and running findpeak in the other direction
+[dippks(2),diplocs(2), dipw(2)]=findpeaks(flipud(di(1:lsys)), 'NPeaks',1,'MinPeakHeight',minpeak); % find 2nd dI+ peaks (Wf2) by flipping the data and running findpeak in the other direction
 diplocs(2)=lsys-diplocs(2);
 
 %     % check peaks 
@@ -396,7 +391,6 @@ diplocs(2)=lsys-diplocs(2);
     
     % clear and close figures
     clear f1 f2
-%     clear f1 f2 f3
     figs =  findobj('type','figure');
     close(figs);
     clear figs;
@@ -429,7 +423,7 @@ diplocs(2)=lsys-diplocs(2);
     proc_var{record_no,18}=aofitb_av;                                       % aortic rate constant B (kb), 1/sec
     proc_var{record_no,19}=aorsq_av;                                        % aortic R2 for diastolic fit
     proc_var{record_no,20}=prob;                                            % likely problem with fit
-    proc_var{record_no,21}=kres_v;                                          % version tracking
+    proc_var{record_no,21}=kres_v;                                          % version kreservoir
     proc_var{record_no,22}=aoTypetxt;                                       % AI type
     proc_var{record_no,23}=hr;                                              % Heart rate, bpm
     proc_var{record_no,24}=ba_sbp2;                                         % SBP2, mmHg
@@ -460,7 +454,7 @@ diplocs(2)=lsys-diplocs(2);
     proc_var{record_no,49}=wri;                                             % WRI
     proc_var{record_no,50}=rhoc;                                            % rhoc
     proc_var{record_no,51}=ao_sevr;                                         % aortic SEVR
-    proc_var{record_no,52}=0;                                               % empty
+    proc_var{record_no,52}='1beta';                                         % version of bRes_bpp
     proc_var{record_no,53}=quality;                                         % quality index
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -531,13 +525,13 @@ xlsfile='C:\BPPdata\results\resdata.xls';
 header = {'re_file' 're_basbp' 're_tbasbp' 're_minp' 're_intaopr' 're_maxaopr'...
     're_tmaxaopr' 're_intaoprlessdbp' 'date' 're_sam_rate'...
     're_intaoxsp' 're_maxaoxsp' 're_tmaxaoxsp' 're_aotn' 're_aopinf' 're_aopn'...
-    're_aofita' 're_aofitb' 're_aorsq' 're_prob' 're_version'...
+    're_aofita' 're_aofitb' 're_aorsq' 're_prob' 're_kres'...
     're_aitype' 're_hr' 're_sbp2' 're_intbapr' 're_maxbapr' 're_tmaxbapr'...
 	're_intbaxsp' 're_maxbaxsp' 're_tmaxbap' 're_bafita' 're_bafitb'...
     're_barsq' 're_bapinf' 're_bapn' 're_ao_dpdt' 're_ba_dpdt'...
     're_pb_pf' 're_ri' 're_wf1i'  're_wf1t' 're_wf1a' 're_wbi' ...
     're_wbt' 're_wba' 're_wf2i'  're_wf2t' 're_wf2a'  're_wri' 're_rhoc' ...
-    're_aosevr' 're_empty' 're_quality'}; % header
+    're_aosevr' 're_version' 're_quality'}; % header
 
 % % writetable
 Results_table=cell2table(proc_var, 'VariableNames',header);
