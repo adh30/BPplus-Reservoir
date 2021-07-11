@@ -27,6 +27,7 @@
 %  v0.2 (17/05/20)  Fix various bugs. Add ao and ba waveforms. Improve peak detection. Some error traps.
 %  v1.0beta (23/05/20)  updated Savitzky Golay estimation of derivatives,
 %  plus a few minor bug fixes. Now better aligned with bRes_sp (Sphygmocor)
+%  v1.01beta 11/07/21 additional information on variables thanks to Richard Scott.
 %%%%%%%%%%%%%%%% 
 %% m files required to be in directory
 % ai_v1
@@ -97,14 +98,14 @@ snr=str2double(data.CardioScope.Results.Result.SNR.Text);                   % Si
 ss_rmssd=str2double(data.CardioScope.Results.Result.RMSSD.Text);            % RMSSD from suprasystolic signal
 ss_ai=str2double(data.CardioScope.Results.Result.ssAI.Text);                % AI from suprasystolic signal
 ssdpdt=str2double(data.CardioScope.Results.Result.ssDpDtMax.Text);          % dp/dt from suprasystolic signal in uncorrected units
-ssHARM=str2double(data.CardioScope.Results.Result.ssHARM.Text);             % unknown 
-ssPP=str2double(data.CardioScope.Results.Result.ssPP.Text);                 % unknown
+ssHARM=str2double(data.CardioScope.Results.Result.ssHARM.Text);             % Normalized sAI
+ssPP=str2double(data.CardioScope.Results.Result.ssPP.Text);                 % Suprasystolic Pulse Pressure Variation
 ssPPV=str2double(data.CardioScope.Results.Result.ssPPV.Text);               % Pulse pressure variation, % [?]
 ssRWTTFoot=str2double(data.CardioScope.Results.Result.ssRWTTFoot.Text);     % reflected wave transit time from foot of suprasystolic signal
 ssRWTTPeak=str2double(data.CardioScope.Results.Result.ssRWTTPeak.Text);     % reflected wave transit time from peak of suprasystolic signal
 ssSEP=str2double(data.CardioScope.Results.Result.ssSEP.Text);               % Systolic ejection period, s
 algo=data.CardioScope.Results.Result.Attributes.algorithm_revision;         % Software algorithm
-ssTn=split(data.CardioScope.Results.Result.ssAverageBeatPointsIdxs.Text,','); % Times of characteristic points?
+ssTn=split(data.CardioScope.Results.Result.ssAverageBeatPointsIdxs.Text,','); % Times of characteristic points
 % Timings of peaks dont match waveforms - seems to be a bug or possibly
 % timings are from foot rather than beginning of waveform?
 T1=str2double(ssTn(2));                                                     % Time of 1st peak in samples
@@ -454,7 +455,7 @@ diplocs(2)=lsys-diplocs(2);
     proc_var{record_no,49}=wri;                                             % WRI
     proc_var{record_no,50}=rhoc;                                            % rhoc
     proc_var{record_no,51}=ao_sevr;                                         % aortic SEVR
-    proc_var{record_no,52}='1beta';                                         % version of bRes_bpp
+    proc_var{record_no,52}='1.1beta';                                       % version of bRes_bpp
     proc_var{record_no,53}=quality;                                         % quality index
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
