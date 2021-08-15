@@ -1,7 +1,8 @@
 % bRes_bpp
 %% batch analysis of BP+ to give results like Sphygmocor
 %  and do reservoir analysis using kreservoir_vXX 
-%% Copyright 2019 Alun Hughes based on original code by Kim Parker
+%% Copyright 2019 Alun Hughes 
+% Based on some original code by Kim Parker and with additional suggestions from Richard Scott.
 % Also uses xml2struct.m by W. Falkena, ASTI, TUDelft, 21-08-2010 with additional 
 % modifications by A. Wanner, I Smirnov & Chao-Yuan Yeh
 %
