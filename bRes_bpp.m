@@ -18,17 +18,11 @@
 % http://www.gnu.org/licenses/gpl.html
 
 %% Versions
-%  v0.1 (03/01/20) First solid version but still in early beta - no WIA, no
-%  save
-%  v0.11 (03/01/20) version with WIA but no save except figures
-%  v0.12 (03/01/20) save results in excel file and achieve concordance
-%  with batch reservoir v13 (sphygmocor) except for HRV
-%  v0.12 (07/03/20) add SEVR [Buckberg index] calculation and add quality index to output
-%  v0.2 (17/05/20)  Fix various bugs. Add ao and ba waveforms. Improve peak detection. Some error traps.
-%  v1.0beta (23/05/20)  updated Savitzky Golay estimation of derivatives,
-%  plus a few minor bug fixes. Now better aligned with bRes_sp (Sphygmocor)
-%  v1.01beta 11/07/21 additional information on variables thanks to Richard Scott.
+%  v.01 First alpha version adapted for new BPplus
 %%%%%%%%%%%%%%%% 
+% Things to do - need to check quality of beats since they seem poor at
+% present. May need to re-ensemble
+%%%%%%%%%%%%%%%%
 %% m files required to be in directory
 % ai_v1
 % xml2struct
@@ -44,7 +38,7 @@
     Frame=9;               % Window length for sgolay based on (Rivolo et al.  
                            % IEEE Engineering in Medicine and Biology Society 
                            % Annual Conference 2014; 2014: 5056-9.
-    version='1beta';       % Version of bRes_bpp    
+    version='2beta';       % Version of bRes_bpp    
 %% Select files
 folder_name ='C:\BPPdata\'; % standard directory
 % check that C:\BPPdata\ exists and if not allows new folder to be chosen
@@ -86,33 +80,33 @@ filename=file_lists(record_no).name;
     end
 
 % extract values
-ba_sbp=str2double(data.CardioScope.MeasDataLogger.Sys.Text);                % brachial systolic BP, mmHg
-dbp=str2double(data.CardioScope.MeasDataLogger.Dia.Text);                   % diastolic BP, mmHg
-ba_pp=ba_sbp-dbp;                                                           % brachial pulse pressure, mmHg
-map=str2double(data.CardioScope.MeasDataLogger.Mean.Text);                  % mean arterial pressure, mmHg 
-hr=str2double(data.CardioScope.MeasDataLogger.Hr.Text);                     % heart rate, bpm
-samplerate=str2double(data.CardioScope.MeasDataLogger.SampleRate.Text);     % sample rate, Hz
-aosbp=str2double(data.CardioScope.Results.Result.aoSys.Text);               % cSBP calculated by BP+, mmHg
-aopp=aosbp-dbp;                                                             % cPP calculated by BP+, mmHg
-snr=str2double(data.CardioScope.Results.Result.SNR.Text);                   % Signal to noise ratio, dB
-ss_rmssd=str2double(data.CardioScope.Results.Result.RMSSD.Text);            % RMSSD from suprasystolic signal
-ss_ai=str2double(data.CardioScope.Results.Result.ssAI.Text);                % AI from suprasystolic signal
-ssdpdt=str2double(data.CardioScope.Results.Result.ssDpDtMax.Text);          % dp/dt from suprasystolic signal in uncorrected units
-ssHARM=str2double(data.CardioScope.Results.Result.ssHARM.Text);             % Normalized sAI
-ssPP=str2double(data.CardioScope.Results.Result.ssPP.Text);                 % Suprasystolic Pulse Pressure
-ssPPV=str2double(data.CardioScope.Results.Result.ssPPV.Text);               % Suprasystolic Pulse Pressure Variation, %
-ssRWTTFoot=str2double(data.CardioScope.Results.Result.ssRWTTFoot.Text);     % reflected wave transit time from foot of suprasystolic signal
-ssRWTTPeak=str2double(data.CardioScope.Results.Result.ssRWTTPeak.Text);     % reflected wave transit time from peak of suprasystolic signal
-ssSEP=str2double(data.CardioScope.Results.Result.ssSEP.Text);               % Systolic ejection period, s
-algo=data.CardioScope.Results.Result.Attributes.algorithm_revision;         % Software algorithm
-ssTn=split(data.CardioScope.Results.Result.ssAverageBeatPointsIdxs.Text,','); % Times of characteristic points
+ba_sbp=str2double(data.BPplus.MeasDataLogger.Sys.Text);                % brachial systolic BP, mmHg
+dbp=str2double(data.BPplus.MeasDataLogger.Dia.Text);                   % diastolic BP, mmHg
+ba_pp=ba_sbp-dbp;                                                      % brachial pulse pressure, mmHg
+map=str2double(data.BPplus.MeasDataLogger.Map.Text);                   % mean arterial pressure, mmHg 
+hr=str2double(data.BPplus.MeasDataLogger.Pr.Text);                     % heart rate, bpm
+samplerate=str2double(data.BPplus.MeasDataLogger.SampleRate.Text);     % sample rate, Hz
+aosbp=str2double(data.BPplus.Results.Result.cSys.Text);                % cSBP calculated by BP+, mmHg
+aodbp=str2double(data.BPplus.Results.Result.cDia.Text);                % cDBP calculated by BP+, mmHg
+aopp=aosbp-aodbp;                                                      % cPP calculated by BP+, mmHg
+snr=str2double(data.BPplus.Results.Result.SNR.Text);                   % Signal to noise ratio, dB
+% ss_rmssd=str2double(data.BPplus.Results.Result.RMSSD.Text);          % RMSSD from suprasystolic signal
+ss_ai=str2double(data.BPplus.Results.Result.sAI.Text);                 % AI from suprasystolic signal
+ssdpdt=str2double(data.BPplus.Results.Result.sDpDtMax.Text);           % dp/dt from suprasystolic signal in uncorrected units
+ssPP=str2double(data.BPplus.Results.Result.sPP.Text);                 % unknown
+ssPPV=str2double(data.BPplus.Results.Result.sPPV.Text);               % Pulse pressure variation, %
+ssRWTTFoot=str2double(data.BPplus.Results.Result.sRWTTFoot.Text);     % reflected wave transit time from foot of suprasystolic signal
+ssRWTTPeak=str2double(data.BPplus.Results.Result.sRWTTPeak.Text);     % reflected wave transit time from peak of suprasystolic signal
+ssSEP=str2double(data.BPplus.Results.Result.sSEP.Text);               % Systolic ejection period, s
+% algo=data.BPplus.Results.Result.Attributes.algorithm_revision;         % Software algorithm
+ssTn=split(data.BPplus.Results.Result.sAveragePulsePointsIndexes.Text,','); % Times of characteristic points?
 % Timings of peaks dont match waveforms - seems to be a bug or possibly
 % timings are from foot rather than beginning of waveform?
 T1=str2double(ssTn(2));                                                     % Time of 1st peak in samples
 T2=str2double(ssTn(3));                                                     % Time of inflection in samples
 T3=str2double(ssTn(4));                                                     % Time of 2nd peak in samples
 T4=str2double(ssTn(5));                                                     % Time of nadir of dichrotic notch
-datestring=data.CardioScope.MeasDataLogger.Attributes.datetime;             % Date as text string
+datestring=data.BPplus.MeasDataLogger.Attributes.datetime;             % Date and time as text string
 %% categorise quality based on SNR
 if snr>=12
     quality='Excellent';
@@ -127,7 +121,7 @@ else
 end
 
 %% brachial pulses
-ba_p_all=str2double(split(data.CardioScope.Results.Result.baEstimate.Text,','));
+ba_p_all=str2double(split(data.BPplus.Results.Result.baEstimate.Text,','));
 % replace values at start and end <DBP and >SBP with NaN
 % deal with low early values
 for i = 1:200
@@ -146,7 +140,7 @@ ba_p_all = ba_p_all(~isnan(ba_p_all));
 % plot(ba_p_all)
 
 %% brachial average beat
-sstxt = split(data.CardioScope.Results.Result.ssAverageBeat.Text,',');
+sstxt = split(data.BPplus.Results.Result.sAveragePulse.Text,',');
 %b_avp_av=zeros(size(sstxt,1),size(sstxt,2)); 
 ba_p_av=str2double(sstxt);
 calss_p=ba_pp/(max(ba_p_av)-min(ba_p_av));
@@ -155,7 +149,7 @@ ba_p_av=dbp+(ba_p_av*calss_p);
 ssdpdt=ssdpdt*calss_p;                                                      % correcting to mmHg/s
 
 %% aortic pulses
-ao_p_all=str2double(split(data.CardioScope.Results.Result.aoEstimate.Text,','));
+ao_p_all=str2double(split(data.BPplus.Results.Result.cEstimate.Text,','));
 % replace values at start and end <DBP and >SBP with NaN
 % deal with low early values
 for i = 1:200
@@ -174,7 +168,7 @@ ao_p_all = ao_p_all(~isnan(ao_p_all));
 % plot(ao_all)
 %% aortic average beat, ao_p_av
 % extract aortic data
-a0=str2double(split(data.CardioScope.Results.Result.aoAverageBeat.Text,','));
+a0=str2double(split(data.BPplus.Results.Result.cAveragePulse.Text,','));
 % create a double beat' to deal with the errors in definition of dbp
 a=[a0; a0];
 % identify start and end of beat as minima
@@ -455,7 +449,7 @@ diplocs(2)=lsys-diplocs(2);
     proc_var{record_no,49}=wri;                                             % WRI
     proc_var{record_no,50}=rhoc;                                            % rhoc
     proc_var{record_no,51}=ao_sevr;                                         % aortic SEVR
-    proc_var{record_no,52}='1.1beta';                                       % version of bRes_bpp
+    proc_var{record_no,52}='1beta';                                         % version of bRes_bpp
     proc_var{record_no,53}=quality;                                         % quality index
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
