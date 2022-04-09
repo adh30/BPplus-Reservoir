@@ -1,8 +1,9 @@
 % bRes_bpp
 %% batch analysis of BP+ to give results like Sphygmocor
-%  and do reservoir analysis using kreservoir_vXX 
-%% Copyright 2019 Alun Hughes based on original code by Kim Parker
-% Also uses xml2struct.m by W. Falkena, ASTI, TUDelft, 21-08-2010 with additional 
+%  and do reservoir analysis using kreservoir_vXX
+%% Copyright 2019 Alun Hughes
+% Based on some original code by Kim Parker and with additional suggestions from Richard Scott.
+% Also uses xml2struct.m by W. Falkena, ASTI, TUDelft, 21-08-2010 with additional
 % modifications by A. Wanner, I Smirnov & Chao-Yuan Yeh
 %
 % This software is distributed under under the terms of the GNU General Public License
@@ -18,17 +19,14 @@
 % http://www.gnu.org/licenses/gpl.html
 
 %% Versions
-%  v0.1 (03/01/20) First solid version but still in early beta - no WIA, no
-%  save
-%  v0.11 (03/01/20) version with WIA but no save except figures
-%  v0.12 (03/01/20) save results in excel file and achieve concordance
-%  with batch reservoir v13 (sphygmocor) except for HRV
-%  v0.12 (07/03/20) add SEVR [Buckberg index] calculation and add quality index to output
-%  v0.2 (17/05/20)  Fix various bugs. Add ao and ba waveforms. Improve peak detection. Some error traps.
-%  v1.0beta (23/05/20)  updated Savitzky Golay estimation of derivatives,
-%  plus a few minor bug fixes. Now better aligned with bRes_sp (Sphygmocor)
-%  v1.01beta 11/07/21 additional information on variables thanks to Richard Scott.
-%%%%%%%%%%%%%%%% 
+%  v1.0 beta 2 version adapted for new BPplus
+%%%%%%%%%%%%%%%%
+% Things to do - need to check quality of beats since they seem poor at
+% present in some cases. May need to re-ensemble but it may be fixed in new
+% BP+ xml.
+% Incorporate Liu's area method and other standard sphygmocor measures
+% Enable reading of new BP+ xml files
+%%%%%%%%%%%%%%%%
 %% m files required to be in directory
 % ai_v1
 % xml2struct
@@ -41,10 +39,10 @@
     mmHgPa = 133;          % P conversion for WIA
     uconst=1;              % empirical constant to convert normalized velocity to m/s
     Npoly=3;               % Order of polynomial fit for sgolay
-    Frame=9;               % Window length for sgolay based on (Rivolo et al.  
-                           % IEEE Engineering in Medicine and Biology Society 
+    Frame=9;               % Window length for sgolay based on (Rivolo et al.
+                           % IEEE Engineering in Medicine and Biology Society
                            % Annual Conference 2014; 2014: 5056-9.
-    version='1beta';       % Version of bRes_bpp    
+    version='2beta';       % Version of bRes_bpp
 %% Select files
 folder_name ='C:\BPPdata\'; % standard directory
 % check that C:\BPPdata\ exists and if not allows new folder to be chosen
@@ -73,7 +71,7 @@ proc_var=cell(no_of_files,headernumber);
 
 %% Start loop through all files
 for file_number=1:no_of_files
-% refresh filename 
+% refresh filename
 filename=file_lists(record_no).name;
 [data] = xml2struct([folder_name filename]);
 
@@ -86,33 +84,33 @@ filename=file_lists(record_no).name;
     end
 
 % extract values
-ba_sbp=str2double(data.CardioScope.MeasDataLogger.Sys.Text);                % brachial systolic BP, mmHg
-dbp=str2double(data.CardioScope.MeasDataLogger.Dia.Text);                   % diastolic BP, mmHg
-ba_pp=ba_sbp-dbp;                                                           % brachial pulse pressure, mmHg
-map=str2double(data.CardioScope.MeasDataLogger.Mean.Text);                  % mean arterial pressure, mmHg 
-hr=str2double(data.CardioScope.MeasDataLogger.Hr.Text);                     % heart rate, bpm
-samplerate=str2double(data.CardioScope.MeasDataLogger.SampleRate.Text);     % sample rate, Hz
-aosbp=str2double(data.CardioScope.Results.Result.aoSys.Text);               % cSBP calculated by BP+, mmHg
-aopp=aosbp-dbp;                                                             % cPP calculated by BP+, mmHg
-snr=str2double(data.CardioScope.Results.Result.SNR.Text);                   % Signal to noise ratio, dB
-ss_rmssd=str2double(data.CardioScope.Results.Result.RMSSD.Text);            % RMSSD from suprasystolic signal
-ss_ai=str2double(data.CardioScope.Results.Result.ssAI.Text);                % AI from suprasystolic signal
-ssdpdt=str2double(data.CardioScope.Results.Result.ssDpDtMax.Text);          % dp/dt from suprasystolic signal in uncorrected units
-ssHARM=str2double(data.CardioScope.Results.Result.ssHARM.Text);             % Normalized sAI
-ssPP=str2double(data.CardioScope.Results.Result.ssPP.Text);                 % Suprasystolic Pulse Pressure
-ssPPV=str2double(data.CardioScope.Results.Result.ssPPV.Text);               % Suprasystolic Pulse Pressure Variation, %
-ssRWTTFoot=str2double(data.CardioScope.Results.Result.ssRWTTFoot.Text);     % reflected wave transit time from foot of suprasystolic signal
-ssRWTTPeak=str2double(data.CardioScope.Results.Result.ssRWTTPeak.Text);     % reflected wave transit time from peak of suprasystolic signal
-ssSEP=str2double(data.CardioScope.Results.Result.ssSEP.Text);               % Systolic ejection period, s
-algo=data.CardioScope.Results.Result.Attributes.algorithm_revision;         % Software algorithm
-ssTn=split(data.CardioScope.Results.Result.ssAverageBeatPointsIdxs.Text,','); % Times of characteristic points
+ba_sbp=str2double(data.BPplus.MeasDataLogger.Sys.Text);                % brachial systolic BP, mmHg
+dbp=str2double(data.BPplus.MeasDataLogger.Dia.Text);                   % diastolic BP, mmHg
+ba_pp=ba_sbp-dbp;                                                      % brachial pulse pressure, mmHg
+map=str2double(data.BPplus.MeasDataLogger.Map.Text);                   % mean arterial pressure, mmHg
+hr=str2double(data.BPplus.MeasDataLogger.Pr.Text);                     % heart rate, bpm
+samplerate=str2double(data.BPplus.MeasDataLogger.SampleRate.Text);     % sample rate, Hz
+aosbp=str2double(data.BPplus.Results.Result.cSys.Text);                % cSBP calculated by BP+, mmHg
+aodbp=str2double(data.BPplus.Results.Result.cDia.Text);                % cDBP calculated by BP+, mmHg
+aopp=aosbp-aodbp;                                                      % cPP calculated by BP+, mmHg
+snr=str2double(data.BPplus.Results.Result.SNR.Text);                   % Signal to noise ratio, dB
+% ss_rmssd=str2double(data.BPplus.Results.Result.RMSSD.Text);          % RMSSD from suprasystolic signal
+ss_ai=str2double(data.BPplus.Results.Result.sAI.Text);                 % AI from suprasystolic signal
+ssdpdt=str2double(data.BPplus.Results.Result.sDpDtMax.Text);           % dp/dt from suprasystolic signal in uncorrected units
+ssPP=str2double(data.BPplus.Results.Result.sPP.Text);                 % unknown
+ssPPV=str2double(data.BPplus.Results.Result.sPPV.Text);               % Pulse pressure variation, %
+ssRWTTFoot=str2double(data.BPplus.Results.Result.sRWTTFoot.Text);     % reflected wave transit time from foot of suprasystolic signal
+ssRWTTPeak=str2double(data.BPplus.Results.Result.sRWTTPeak.Text);     % reflected wave transit time from peak of suprasystolic signal
+ssSEP=str2double(data.BPplus.Results.Result.sSEP.Text);               % Systolic ejection period, s
+% algo=data.BPplus.Results.Result.Attributes.algorithm_revision;         % Software algorithm
+ssTn=split(data.BPplus.Results.Result.sAveragePulsePointsIndexes.Text,','); % Times of characteristic points?
 % Timings of peaks dont match waveforms - seems to be a bug or possibly
 % timings are from foot rather than beginning of waveform?
 T1=str2double(ssTn(2));                                                     % Time of 1st peak in samples
 T2=str2double(ssTn(3));                                                     % Time of inflection in samples
 T3=str2double(ssTn(4));                                                     % Time of 2nd peak in samples
 T4=str2double(ssTn(5));                                                     % Time of nadir of dichrotic notch
-datestring=data.CardioScope.MeasDataLogger.Attributes.datetime;             % Date as text string
+datestring=data.BPplus.MeasDataLogger.Attributes.datetime;             % Date and time as text string
 %% categorise quality based on SNR
 if snr>=12
     quality='Excellent';
@@ -122,12 +120,12 @@ elseif snr>=6
     quality='Acceptable';
 elseif snr>0
     quality='Poor';
-else 
+else
     elsequality='Unacceptable';
 end
 
 %% brachial pulses
-ba_p_all=str2double(split(data.CardioScope.Results.Result.baEstimate.Text,','));
+ba_p_all=str2double(split(data.BPplus.Results.Result.baEstimate.Text,','));
 % replace values at start and end <DBP and >SBP with NaN
 % deal with low early values
 for i = 1:200
@@ -146,8 +144,8 @@ ba_p_all = ba_p_all(~isnan(ba_p_all));
 % plot(ba_p_all)
 
 %% brachial average beat
-sstxt = split(data.CardioScope.Results.Result.ssAverageBeat.Text,',');
-%b_avp_av=zeros(size(sstxt,1),size(sstxt,2)); 
+sstxt = split(data.BPplus.Results.Result.sAveragePulse.Text,',');
+%b_avp_av=zeros(size(sstxt,1),size(sstxt,2));
 ba_p_av=str2double(sstxt);
 calss_p=ba_pp/(max(ba_p_av)-min(ba_p_av));
 ba_p_av=dbp+(ba_p_av*calss_p);
@@ -155,7 +153,7 @@ ba_p_av=dbp+(ba_p_av*calss_p);
 ssdpdt=ssdpdt*calss_p;                                                      % correcting to mmHg/s
 
 %% aortic pulses
-ao_p_all=str2double(split(data.CardioScope.Results.Result.aoEstimate.Text,','));
+ao_p_all=str2double(split(data.BPplus.Results.Result.cEstimate.Text,','));
 % replace values at start and end <DBP and >SBP with NaN
 % deal with low early values
 for i = 1:200
@@ -174,7 +172,7 @@ ao_p_all = ao_p_all(~isnan(ao_p_all));
 % plot(ao_all)
 %% aortic average beat, ao_p_av
 % extract aortic data
-a0=str2double(split(data.CardioScope.Results.Result.aoAverageBeat.Text,','));
+a0=str2double(split(data.BPplus.Results.Result.cAveragePulse.Text,','));
 % create a double beat' to deal with the errors in definition of dbp
 a=[a0; a0];
 % identify start and end of beat as minima
@@ -185,12 +183,12 @@ locmin2=locmin2+locmin1+50;
 
 % filter derivative of new beat with SG to get rid of kinks at or around join
 aa = sgolayfilt(diff(a),Npoly,Frame); % filter the derivative - order and framelen defined above
-a1=cumsum(aa)-min(cumsum(aa))+min(a);    % reconstruct   
-ao_p_av =a1(locmin1:locmin2-1)';         % crop to cycle   
+a1=cumsum(aa)-min(cumsum(aa))+min(a);    % reconstruct
+ao_p_av =a1(locmin1:locmin2-1)';         % crop to cycle
 clear a0 a aa a1;
 
 %% calculate aoAIx
-% [~, yy]= max((gradient(gradient(ao_p_av))));    % define start as peak 
+% [~, yy]= max((gradient(gradient(ao_p_av))));    % define start as peak
 %dp^2 since some of the aortic pressures have a hump at the start
 % p is variable to pass
 % p=ao_p_av(yy:end);
@@ -199,20 +197,20 @@ clear a0 a aa a1;
 % %% calculate some more measures
 % [~, Tpeaks]=findpeaks(diff(p), 'Npeaks', 3);    % peaks of dP
 % aosbp2=p(Tpeaks(2));          % this is more reliable than 3rd zero crossing of 4th derivative
-% %[~,aoTd]=min(diff(p));       % MAY NOT BE NECESSARY TO CALCULATE min dP/dt TWICE 
+% %[~,aoTd]=min(diff(p));       % MAY NOT BE NECESSARY TO CALCULATE min dP/dt TWICE
 % % ao_es=p(aoTd);
 %% calculate aortic dp/dt
 ao_dpdt=max(diff(ao_p_av))*samplerate;
 
 %% do reservoir calculations for aortic pressure
 [aoTn_av, aoPinf_av, aoP_av,aoPr_av,aoPn_av, aofita_av,...
-aofitb_av, aorsq_av]=BPfitres_v1(ao_p_av,samplerate);  
+aofitb_av, aorsq_av]=BPfitres_v1(ao_p_av,samplerate);
 aoPxs=aoP_av-aoPr_av;
 
 %% do reservoir calculations for brachial pressure
 % assign p to pass to function
 [baTn_av, baPinf_av, baP_av,baPr_av,baPn_av, bafita_av,...
-bafitb_av, barsq_av]=BPfitres_v1(ba_p_av',samplerate);  
+bafitb_av, barsq_av]=BPfitres_v1(ba_p_av',samplerate);
 baPxs=baP_av-baPr_av;
 
 % pAI
@@ -259,10 +257,10 @@ u=u';   %
     dp(n)=dot(g(:,2),aoP_av(n-HalfWin:n+HalfWin));    % pressure difference
     duxs(n)=dot(g(:,2),u(n-HalfWin:n+HalfWin)); % velocity difference
     end
-    
+
 di=dp.*duxs;
 di=di*mmHgPa*length(dp)^2;      % units fixed - now in W/m2 per cycle^2
-  
+
 % new peak detection algorithm
 minpeak=max(di)/20;             % changed to 20 - entirely arbitrary but represents 5%.
 [~,lsys]=min(dp);               % restrict analysis to systole
@@ -282,33 +280,33 @@ end
 [dippks(2),diplocs(2), dipw(2)]=findpeaks(flipud(di(1:lsys)), 'NPeaks',1,'MinPeakHeight',minpeak); % find 2nd dI+ peaks (Wf2) by flipping the data and running findpeak in the other direction
 diplocs(2)=lsys-diplocs(2);
 
-%     % check peaks 
-%     figure; hold on; plot(di); plot(diplocs(1),dippks(1),'ko'); 
+%     % check peaks
+%     figure; hold on; plot(di); plot(diplocs(1),dippks(1),'ko');
 %     plot(dimlocs,-dimpks,'ro'); plot(diplocs(2),dippks(2),'ks');
-%       
+%
     % calculate peak time (s)
     dipt=diplocs/samplerate;
     dimt=dimlocs/samplerate;
-    
+
     % error trap for when Wf2 is unmeasureable
      if length(dippks)==1
         dippks(2)=0;
         dipt(2)=0;
       end
-    
+
     % calculate areas
     % For a Gaussian curve (assumed) the area is 1.06447*height*width
     diparea=1.06447*dippks.*dipw;
     dimarea=1.06447*dimpks.*dimw;
     wri=dimarea/diparea(1);
-    
+
     % error trap when W2 is unmeasureable
      if length(dippks)==1
         dippks(2)=0;
         dipt(2)=0;
         diparea(2)=0;
      end
-    
+
     % Estimate c (wavespeed) as k*dP/du where k is empirical constant
     rhoc=max(aoPxs)*mmHgPa/1000; % fixed units (m/s)
 %% possible problems with fits
@@ -316,12 +314,12 @@ diplocs(2)=lsys-diplocs(2);
         prob=1;
     else
         prob =0;
-    end      
+    end
 % *************should write error salvage sometime!
 
 %% make figures and data subfolders
     figfolder='C:\BPPdata\figures\';
-    datafolder='C:\BPPdata\results\'; 
+    datafolder='C:\BPPdata\results\';
     if ~exist(figfolder, 'dir')
     mkdir(figfolder);
     end
@@ -333,10 +331,10 @@ diplocs(2)=lsys-diplocs(2);
     replace1 = 'wmf';
     replace2 ='jpg';
     replace3 ='svg';
-    wmffile = regexprep(filename,expression,replace1);  
+    wmffile = regexprep(filename,expression,replace1);
     jpgfile = regexprep(filename,expression,replace2);
-    svgfile = regexprep(filename,expression,replace3);   
-    
+    svgfile = regexprep(filename,expression,replace3);
+
 %% Print figures
     % make a time variable for printing
     Time_av=(1:length(baP_av))/samplerate;
@@ -345,14 +343,14 @@ diplocs(2)=lsys-diplocs(2);
     figure('visible','off');                     % dont display figure
     subplot(1,2,1); hold on;
     plot(Time_all,ba_p_all);
-    % plot(sysloc/sampling_rate, P_all(sysloc),'ro'); 
+    % plot(sysloc/sampling_rate, P_all(sysloc),'ro');
     % plot(dialoc/sampling_rate, P_all(dialoc),'rs');
     xlabel('Time (s)')
     ylabel('BP (mmHg)')
     title('Pulse traces')
     box off;
     subplot(1,2,2);
-    plot(Time_av,baP_av-baP_av(1),Time_av,baPr_av-baPr_av(1),'r', Time_av, baPxs,'k')  
+    plot(Time_av,baP_av-baP_av(1),Time_av,baPr_av-baPr_av(1),'r', Time_av, baPxs,'k')
     xlabel('Time (s)')
     ylabel('BP (mmHg)')
     title('Brachial P, Pres, Pxs')
@@ -360,12 +358,12 @@ diplocs(2)=lsys-diplocs(2);
     % print ('-dmeta', '-r300' , [figfolder wmffile]);
     % print ('-dsvg', '-r300' , [figfolder svgfile]);   // not working in microsoft programs despite claims
     print ('-djpeg', '-r300' , [figfolder jpgfile]);
-    
+
     % WI
     figure('visible','off');                      % dont display figure
     TimeDI=(1:length(di))/samplerate;
     plot (TimeDI, di); hold on;                      % to allow for new length
-    plot(dipt(1),dippks(1),'ko'); 
+    plot(dipt(1),dippks(1),'ko');
     plot(dimt,-dimpks,'ro'); plot(dipt(2),dippks(2),'ks');
     xlabel('Time (s)')
     ylabel('dI (W/m^2/cycle^2)')
@@ -376,7 +374,7 @@ diplocs(2)=lsys-diplocs(2);
     % print ('-dmeta', '-r300' , [figfolder wmffile1]);
     print ('-djpeg', '-r300' , [figfolder jpgfile1]);
     drawnow();                  % added to attempt to stop java leak
-    
+
     % P, Pf, Pb
     figure('visible','off');                     % dont display figure
     Time_av=(1:length(aoPf_av))/samplerate;
@@ -389,7 +387,7 @@ diplocs(2)=lsys-diplocs(2);
     % print ('-dmeta', '-r300' , [figfolder wmffile2]);
     print ('-djpeg', '-r300' , [figfolder jpgfile2]);
     drawnow();                  % added to attempt to stop java leak
-    
+
     % clear and close figures
     clear f1 f2
     figs =  findobj('type','figure');
@@ -403,7 +401,7 @@ diplocs(2)=lsys-diplocs(2);
 [maxPrb,max_trb]= max(baPr_av);
 [maxPxsb,max_txsb]= max(baPxs);
 
-% write variables 
+% write variables
     proc_var{record_no,1}=filename;                                         % filename
     proc_var{record_no,2}=ba_sbp;                                           % brachial SBP, mmHg
     proc_var{record_no,3}=max_tpb/samplerate;                               % time max brachial P (baSBP), s
@@ -455,43 +453,43 @@ diplocs(2)=lsys-diplocs(2);
     proc_var{record_no,49}=wri;                                             % WRI
     proc_var{record_no,50}=rhoc;                                            % rhoc
     proc_var{record_no,51}=ao_sevr;                                         % aortic SEVR
-    proc_var{record_no,52}='1.1beta';                                       % version of bRes_bpp
+    proc_var{record_no,52}='1beta';                                         % version of bRes_bpp
     proc_var{record_no,53}=quality;                                         % quality index
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% increment record number
     if record_no==no_of_files
        close(h)
-       clear h; 
+       clear h;
     else
        record_no=record_no+1;
     end
 %% Save the results as an excel spreadheet
-% % % % 
-% 1 're_file' 
-% 2 're_basbp' 
-% 3 're_tbasbp' 
-% 4 're_minp' 
-% 5 're_intaopr' 
+% % % %
+% 1 're_file'
+% 2 're_basbp'
+% 3 're_tbasbp'
+% 4 're_minp'
+% 5 're_intaopr'
 % 6 're_maxaopr'
-% 7 're_tmaxaopr' 
-% 8 're_intaoprlessdbp' 
-% 9 'date' 
+% 7 're_tmaxaopr'
+% 8 're_intaoprlessdbp'
+% 9 'date'
 % 10 're_sam_rate'
-% 11 're_intaoxsp' 
-% 12 're_maxaoxsp' 
+% 11 're_intaoxsp'
+% 12 're_maxaoxsp'
 % 13 're_tmaxaoxsp'
-% 14 're_aotn' 
-% 15 're_aopinf' 
+% 14 're_aotn'
+% 15 're_aopinf'
 % 16 're_aopn'
 % 17 're_aofita'
 % 18 're_aofitb'
 % 19 're_aorsq'
 % 20 're_prob'
 % 21 're_version'
-% 22 're_aitype' 
-% 23 're_hr' 
-% 24 're_sbp2' 
+% 22 're_aitype'
+% 23 're_hr'
+% 24 're_sbp2'
 % 25 're_intbapr'
 % 26 're_maxbapr'
 % 27 're_tmaxbapr'
@@ -501,27 +499,27 @@ diplocs(2)=lsys-diplocs(2);
 % 31 're_bafita'
 % 32 're_bafitb'
 % 33 're_barsq'
-% 34 're_bapinf' 
-% 35 're_bapn' 
+% 34 're_bapinf'
+% 35 're_bapn'
 % 36 're_ao_dpdt'
 % 37 're_ba_dpdt'
-% 38 're_pb_pf' 
-% 39 're_ri' 
-% 40 're_wf1i' 
-% 41 're_wf1t' 
+% 38 're_pb_pf'
+% 39 're_ri'
+% 40 're_wf1i'
+% 41 're_wf1t'
 % 42 're_wf1a'
-% 43 're_wbi' 
-% 44 're_wbt' 
-% 45 're_wba' 
-% 46 're_wf2i' 
-% 47 're_wf2t' 
+% 43 're_wbi'
+% 44 're_wbt'
+% 45 're_wba'
+% 46 're_wf2i'
+% 47 're_wf2t'
 % 48 're_wf2a'
 % 49 're_wri'
 % 50 're_rhoc'
 % 51 'ao_sevr'
 % 52 'empty'
 % 53 'quality'
-% % % % 
+% % % %
 xlsfile='C:\BPPdata\results\resdata.xls';
 header = {'re_file' 're_basbp' 're_tbasbp' 're_minp' 're_intaopr' 're_maxaopr'...
     're_tmaxaopr' 're_intaoprlessdbp' 'date' 're_sam_rate'...
