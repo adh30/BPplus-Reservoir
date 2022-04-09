@@ -22,8 +22,9 @@
 %  v1.0 beta 2 version adapted for new BPplus
 %%%%%%%%%%%%%%%%
 % Things to do - need to check quality of beats since they seem poor at
-% present. May need to re-ensemble
-% Incorporate Liu's area method
+% present in some cases. May need to re-ensemble but it may be fixed in new
+% BP+ xml.
+% Incorporate Liu's area method and other standard sphygmocor measures
 % Enable reading of new BP+ xml files
 %%%%%%%%%%%%%%%%
 %% m files required to be in directory
