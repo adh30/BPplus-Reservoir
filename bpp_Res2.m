@@ -28,7 +28,6 @@
 % Things to do 
 % - check quality of individual beats since they seem poor at present (todo) 
 % - check SEVR and notch approach (todo) 
-% - calculate systolic and diastolic area (todo) 
 % - calculate other sphygmocor parameters (todo) 
 %%%%%%%%%%%%%%%%
 %% m files required to be in directory
