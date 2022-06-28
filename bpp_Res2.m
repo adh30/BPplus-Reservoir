@@ -23,7 +23,7 @@
 % bpp_res2 (beta3) - beta version adapted to read old and new BPplus 
 % Incorporates information and suggestions from Richard Scott.
 % Minor bug fixes to alternative folder setting, propagating default
-% folder throughout the program and acknowleding fill_between.m
+% folder throughout the program and acknowledging use of 'fill_between.m'
 %%%%%%%%%%%%%%%% 
 % Things to do 
 % - check quality of individual beats since they seem poor at present (todo) 
@@ -38,9 +38,9 @@
 %%%%%%%%%%%%%%%%
 %% Constants
     kres_v='v14';          % Version tracking for reservoir fitting
-    headernumber=53;       % headers for columns of results (see end)
+    headernumber=53;       % Headers for columns of results (see end)
     mmHgPa = 133;          % P conversion for WIA
-    uconst=1;              % empirical constant to convert normalized velocity to m/s
+    uconst=1;              % Empirical constant to convert normalized velocity to m/s
     Npoly=3;               % Order of polynomial fit for sgolay
     Frame=9;               % Window length for sgolay based on (Rivolo et al.  
                            % IEEE Engineering in Medicine and Biology Society 
