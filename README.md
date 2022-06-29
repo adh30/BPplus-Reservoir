@@ -1,7 +1,6 @@
 # BPplus-Reservoir
 Reservoir analysis for BPplus files *bpp_Res2*.
-Matlab scripts to read BPplus files (\*.xml) and perform reservoir analysis
-and estimate some other hemodynamic parameters from blood pressure waveforms.
+Matlab scripts to read BPplus files (\*.xml) and perform reservoir analysis, pressure-only wave intensity analysis and estimate some other hemodynamic parameters from blood pressure waveforms.
 
 **This is beta 3 version and hasn't been subjected to extensive testing**
 
@@ -10,3 +9,6 @@ Feasibility of estimation of aortic wave intensity using non-invasive pressure r
 Front. Physiol., 2020; 11: 550. https://doi.org/10.3389/fphys.2020.00550
 
 I am grateful to Richard Scott for information about variables in the BP plus XML file. 
+
+Known bugs
+* identification of end-systole unreliable. SEVR estimates dubious when this fails. 
