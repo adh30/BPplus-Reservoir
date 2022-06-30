@@ -1,4 +1,5 @@
-% bRes_bpp
+% bRes_bpp_rs_bak.m
+%% Backup of original version with additions from Richard Scott
 %% batch analysis of BP+ to give results like Sphygmocor
 %  and do reservoir analysis using kreservoir_vXX
 %% Copyright 2019 Alun Hughes based on original code by Kim Parker
