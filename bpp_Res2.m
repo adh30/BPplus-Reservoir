@@ -1,11 +1,9 @@
 % bpp_Res2
 %% batch analysis of BP+ to give results like Sphygmocor and do reservoir and WI analysis 
-%% Copyright 2019 Alun Hughes based on some original code by Kim Parker 
+%% Copyright 2019 Alun Hughes based on some original code by Kim Parker
+% Incorporates information and suggestions from Richard Scott (USCOM).
 % Also uses xml2struct.m by W. Falkena, ASTI, TUDelft, 21-08-2010 with additional 
 % modifications by A. Wanner, I Smirnov & Chao-Yuan Yeh
-% and fill_between.m originally written by Ben Vincent, July 2014. Inspired by a
-% function of the same name available in the Matplotlib Python library.
-
 %%
 % This software is distributed under under the terms of the GNU General Public License
 % This program is free software: you can redistribute it and/or modify
@@ -20,15 +18,13 @@
 % http://www.gnu.org/licenses/gpl.html
 
 %% Versions
-% bpp_res2 (beta3) - beta version adapted to read old and new BPplus 
-% Incorporates information and suggestions from Richard Scott.
-% Minor bug fixes to alternative folder setting, propagating default
-% folder throughout the program and acknowledging use of 'fill_between.m'
+% bpp_res2 (beta4) - beta version adapted to read old and new BPplus 
+% various bug fixes
 %%%%%%%%%%%%%%%% 
-% Things to do 
-% - check quality of individual beats since they seem poor at present (todo) 
-% - check SEVR and notch approach (todo) 
-% - calculate other sphygmocor parameters (todo) 
+% Things still to do
+% - highlight excluded beats
+% - calculate other sphygmocor parameters and other BP+ measures
+% - additional quality checks
 %%%%%%%%%%%%%%%%
 %% m files required to be in directory
 % ai_v1
@@ -36,7 +32,7 @@
 % fitres_v5
 % kreservoir_v14
 %%%%%%%%%%%%%%%%
-%% Constants
+%% Constants and settings
     kres_v='v14';          % Version tracking for reservoir fitting
     headernumber=53;       % Headers for columns of results (see end)
     mmHgPa = 133;          % P conversion for WIA
@@ -45,12 +41,12 @@
     Frame=9;               % Window length for sgolay based on (Rivolo et al.  
                            % IEEE Engineering in Medicine and Biology Society 
                            % Annual Conference 2014; 2014: 5056-9.
-    bpp_version='3beta';   % Version of bRes_bpp   
+    bpp_version='beta4';   % Version of bRes_bpp   
 %% Select files
 folder_name ='C:\BPPdata\'; % standard directory changed to reflect new xml files
 % check that folder name exists and if not allows new folder to be chosen
-if ~exist('C:\BPPdata\', 'dir')
-      answer = questdlg('C:\BPPdata_new\ doesnt exist. Would you like to choose another folder?', ...
+if ~exist(folder_name, 'dir')
+      answer = questdlg(strcat(folder_name,'folder doesnt exist. Would you like to choose another folder?'), ...
 	'BPplus Data Folder','Yes', 'No [end]','Yes');
 % Handle response
     switch answer
@@ -90,6 +86,9 @@ filename=file_lists(record_no).name;
 %% Read Data from CardioScope legacy xml
 if sum(strcmp(fieldnames(data), 'CardioScope')) == 1
     % extract CardioScope values
+    % **Note** this hasnt been updated since an earlier version so some
+    % variables may not be imported - its possible that it doesnt work at
+    % all at present!
     ba_sbp=str2double(data.CardioScope.MeasDataLogger.Sys.Text);                % brachial systolic BP, mmHg
     dbp=str2double(data.CardioScope.MeasDataLogger.Dia.Text);                   % diastolic BP, mmHg
     ba_pp=ba_sbp-dbp;                                                           % brachial pulse pressure, mmHg
@@ -103,19 +102,14 @@ if sum(strcmp(fieldnames(data), 'CardioScope')) == 1
     ss_ai=str2double(data.CardioScope.Results.Result.ssAI.Text);                % AI from suprasystolic signal
     ssdpdt=str2double(data.CardioScope.Results.Result.ssDpDtMax.Text);          % dp/dt from suprasystolic signal in uncorrected units
     ssHARM=str2double(data.CardioScope.Results.Result.ssHARM.Text);             % Normalized sAI
-    ssPP=str2double(data.CardioScope.Results.Result.ssPP.Text);                 % Suprasystolic Pulse Pressure
+    ssPP=str2double(data.CardioScope.Results.Result.ssPP.Text);                 % Suprasystolic Pulse Pressure in uncorrected units
     ssPPV=str2double(data.CardioScope.Results.Result.ssPPV.Text);               % Suprasystolic Pulse Pressure Variation, %
     ssRWTTFoot=str2double(data.CardioScope.Results.Result.ssRWTTFoot.Text);     % reflected wave transit time from foot of suprasystolic signal
     ssRWTTPeak=str2double(data.CardioScope.Results.Result.ssRWTTPeak.Text);     % reflected wave transit time from peak of suprasystolic signal
-    ssSEP=str2double(data.CardioScope.Results.Result.ssSEP.Text);               % Systolic ejection period, s
+    ssSEP=str2double(data.CardioScope.Results.Result.ssSEP.Text);               % Systolic ejection period (s), based on suprasystolic signal (dicrotic notch estimate)
     algo=data.CardioScope.Results.Result.Attributes.algorithm_revision;         % Software algorithm
-    ssTn=split(data.CardioScope.Results.Result.ssAverageBeatPointsIdxs.Text,','); % Times of characteristic points?
-    % Timings of peaks dont match waveforms - seems to be a bug or possibly
-    % timings are from foot rather than beginning of waveform?
-    T1=str2double(ssTn(2));                                                     % Time of 1st peak in samples
-    T2=str2double(ssTn(3));                                                     % Time of inflection in samples
-    T3=str2double(ssTn(4));                                                     % Time of 2nd peak in samples
-    T4=str2double(ssTn(5));                                                     % Time of nadir of dichrotic notch
+    ssTn=split...
+        (data.CardioScope.Results.Result.ssAverageBeatPointsIdxs.Text,',');     % Sample positions of 'characteristic points' for brachial waveform -1 (actual samples should be ssTn+1 as matlab starts at 1)
     datestring=data.CardioScope.MeasDataLogger.Attributes.datetime;             % Date as text string
     %% brachial pulses
     ba_p_all=str2double(split(data.CardioScope.Results.Result.baEstimate.Text,','));
@@ -135,13 +129,14 @@ if sum(strcmp(fieldnames(data), 'CardioScope')) == 1
     plot(a(locmin1:locmin2));
 
     % filter derivative of new beat with SG to get rid of kinks at or around join
-    aa = sgolayfilt(diff(a),Npoly,Frame); % filter the derivative - order and framelen defined above
-    a1=cumsum(aa)-min(cumsum(aa))+min(a);    % reconstruct
-    ao_p_av =a1(locmin1:locmin2-1)';         % crop to cycle
+    aa = sgolayfilt(diff(a),Npoly,Frame);                                       % filter the derivative - order and framelen defined above
+    a1=cumsum(aa)-min(cumsum(aa))+min(a);                                       % reconstruct
+    ao_p_av =a1(locmin1:locmin2-1)';                                            % crop to cycle
     clear a0 a aa a1;
 else
     %% Read Data from BPplus xml
     % extract BPplus values
+    datestring=data.BPplus.MeasDataLogger.Attributes.datetime;                  % Date as text string
     ba_sbp=str2double(data.BPplus.MeasDataLogger.Sys.Text);                     % brachial systolic BP, mmHg
     dbp=str2double(data.BPplus.MeasDataLogger.Dia.Text);                        % diastolic BP, mmHg
     ba_pp=ba_sbp-dbp;                                                           % brachial pulse pressure, mmHg
@@ -153,34 +148,42 @@ else
     aopp=aosbp-dbp;                                                             % cPP calculated by BP+, mmHg
     snr=str2double(data.BPplus.Results.Result.SNR.Text);                        % Signal to noise ratio, dB
     ss_rmssd=str2double(data.BPplus.Results.Result.sPRV.Text);                  % RMSSD from suprasystolic signal
-    ss_ai=str2double(data.BPplus.Results.Result.sAI.Text);                      % AI from suprasystolic signal
+    ss_ai=str2double(data.BPplus.Results.Result.sAI.Text);                      % AI from suprasystolic signal, %
     ssdpdt=str2double(data.BPplus.Results.Result.sDpDtMax.Text);                % dp/dt from suprasystolic signal in uncorrected units
     %ssHARM= Can be calculated from sAI if needed
-    ssPP=str2double(data.BPplus.Results.Result.sPP.Text);                       % Suprasystolic Pulse Pressure in the Cuff. [units?? ss units?]
-    ssPPV=str2double(data.BPplus.Results.Result.sPPV.Text);                     % Pulse pressure variation, % [?]
+    ssPP=str2double(data.BPplus.Results.Result.sPP.Text);                       % Suprasystolic Pulse Pressure in uncorrected units
+    ssPPV=str2double(data.BPplus.Results.Result.sPPV.Text);                     % Suprasystolic Pulse Pressure Variation, %
     ssRWTTFoot=str2double(data.BPplus.Results.Result.sRWTTFoot.Text);           % reflected wave transit time from foot of suprasystolic signal
     ssRWTTPeak=str2double(data.BPplus.Results.Result.sRWTTPeak.Text);           % reflected wave transit time from peak of suprasystolic signal
-    ssSEP=str2double(data.BPplus.Results.Result.sSEP.Text)/1000;                % Systolic ejection period, s
+    ssSEP=str2double(data.BPplus.Results.Result.sSEP.Text)/1000;                % Systolic ejection period (s), based on brachial BP+ method which identifies dicrotic notch
     algo=data.BPplus.Results.Result.Attributes.algorithm_revision;              % Software algorithm
-    ssTn=split(data.BPplus.Results.Result.sAveragePulsePointsIndexes.Text,','); % Times of characteristic points?
-    % Timings of peaks dont match waveforms - seems to be a bug or possibly
-    % timings are from foot rather than beginning of waveform?
-    T1=str2double(ssTn(2));                                                     % Time of 1st peak in samples
-    T2=str2double(ssTn(3));                                                     % Time of inflection in samples
-    T3=str2double(ssTn(4));                                                     % Time of 2nd peak in samples
-    T4=str2double(ssTn(5));                                                     % Time of nadir of dichrotic notch
-    datestring=data.BPplus.MeasDataLogger.Attributes.datetime;                  % Date as text string
-    %% brachial pulses
-    ba_p_all=str2double(split(data.BPplus.Results.Result.baEstimate.Text,','));
-    %% brachial average beat
-    sstxt = split(data.BPplus.Results.Result.sAveragePulse.Text,',');           % not scaled
-    %% aortic pulses
-    ao_p_all=str2double(split(data.BPplus.Results.Result.cEstimate.Text,','));
-    % extract aortic data
-    ao_p_av=str2double(split(data.BPplus.Results.Result.cAveragePulse.Text,','))';
-    % start of pulses.
-    cPulseStartIndexes=str2double(split(data.BPplus.Results.Result.cPulseStartIndexes.Text,','));
+    ssTn=split(data.BPplus.Results.Result.sAveragePulsePointsIndexes.Text,','); % Sample positions of 'characteristic points' for average suprasystolic waveform-1 (actual samples should be ssTn+1 as matlab starts at 1) - this is fixed below
+    sspulseindexes=str2double(split...
+        (data.BPplus.Results.Result.sPulseStartIndexes.Text,','));              % start indexes of all beats
+    ssnumtotalpulses=length(sspulseindexes);                                    % total number of beats 
+    ssSelectedpulsenumbers=str2double(split...
+        (data.BPplus.Results.Result.sSelectedPulseIndexes.Text,','));           % id of beats selected 
+    ssnumpulsesused=length(ssSelectedpulsenumbers);                             % number of beats used
+    ba_p_all=str2double(split...
+           (data.BPplus.Results.Result.baEstimate.Text,','));                   % all brachial pulses
+    ba_p_av=str2double(split...
+        (data.BPplus.Results.Result.sAveragePulse.Text,','));                   % average brachial pulse
+    ao_p_all=str2double(split(data.BPplus.Results.Result.cEstimate.Text,','));  % all aortic pulses
+    ao_p_av=str2double(split...
+        (data.BPplus.Results.Result.cAveragePulse.Text,','))';                  % average aortic pulse
+    cPulseStartIndexes=str2double(split...
+        (data.BPplus.Results.Result.cPulseStartIndexes.Text,','));              % start indexes of aortic pulses.      
+% calculate selected pulses 
+for i = 1: length(sspulseindexes)-1
+    pulselengths=(sspulseindexes(i+1)-sspulseindexes(i));
 end
+    bapulseindexes=1+sspulseindexes-sspulseindexes(1);
+
+end
+%% Check data (commented out in working versions but kept for debugging)
+% figure; hold on; plot(ba_p_av); 
+    % plot(baTc,ba_p_av(baTc), 'o')
+      
 %% categorise quality based on SNR
 if snr>=12
     quality='Excellent';
@@ -193,14 +196,17 @@ elseif snr>0
 else
     quality='Unacceptable';
 end
-
-% fprintf("%s %s snr=%d\n",msg, quality, snr); % not working 
-
 %% don't process poor or unacceptable files.
 if snr >=6
+%% percent pulses used
+percentpulsesused = 100*ssnumpulsesused/sspulseindexes;
+ 
+%% Characteristic points for brachial trace 
+% baTc (1) Foot (2) 1st peak (3) Next local minimum (4) 2nd peak (5) next local minimum[Time of nadir of dichrotic notch](6)3rd peak (7) end 
+baTc=str2double(ssTn)+1;      
+    
 %% brachial pulses
-% Move to above: ba_p_all=str2double(split(data.CardioScope.Results.Result.baEstimate.Text,','));
-% replace values at start and end <DBP and >SBP with NaN
+% replace values at start and end <DBP and >SBP with NaN 
 % deal with low early values
 for i = 1:200
    if ba_p_all(i)<dbp
@@ -215,20 +221,15 @@ for i = length(ba_p_all)-200:length(ba_p_all)
 end
 % remove NaNs
 ba_p_all = ba_p_all(~isnan(ba_p_all));
-plot(ba_p_all)
+% plot(ba_p_all)
 
 %% brachial average beat
-%sstxt = split(data.CardioScope.Results.Result.ssAverageBeat.Text,',');
-%b_avp_av=zeros(size(sstxt,1),size(sstxt,2));
-ba_p_av=str2double(sstxt);
 calss_p=ba_pp/(max(ba_p_av)-min(ba_p_av));
-ba_p_av=dbp+(ba_p_av*calss_p);
-
+ba_p_av1=dbp+(ba_p_av*calss_p);
 ssdpdt=ssdpdt*calss_p;                                                      % correcting to mmHg/s
 
 %% aortic pulses
 ao_p_all=ao_p_all(cPulseStartIndexes(1):cPulseStartIndexes(length(cPulseStartIndexes)));
-%%ao_p_all=str2double(split(data.CardioScope.Results.Result.aoEstimate.Text,','));
 % replace values at start and end <DBP and >SBP with NaN
 % deal with low early values
 for i = 1:200
@@ -244,21 +245,12 @@ for i = length(ao_p_all)-200:length(ao_p_all)
 end
 % remove NaNs
 ao_p_all = ao_p_all(~isnan(ao_p_all));
-plot(ao_p_all)
-plot(ao_p_av)
+% plot(ao_p_all)
+% plot(ao_p_av)
 
 %% calculate aoAIx
-% [~, yy]= max((gradient(gradient(ao_p_av))));    % define start as peak
-%dp^2 since some of the aortic pressures have a hump at the start
-% p is variable to pass
-% p=ao_p_av(yy:end);
 [ao_ai, aoPi, aoTfoot, aoTi, aoTmax, aoTypetxt] = ai_v1(ao_p_av, samplerate);
 
-% %% calculate some more measures
-% [~, Tpeaks]=findpeaks(diff(p), 'Npeaks', 3);    % peaks of dP
-% aosbp2=p(Tpeaks(2));          % this is more reliable than 3rd zero crossing of 4th derivative
-% %[~,aoTd]=min(diff(p));       % MAY NOT BE NECESSARY TO CALCULATE min dP/dt TWICE
-% % ao_es=p(aoTd);
 %% calculate aortic dp/dt
 ao_dpdt=max(diff(ao_p_av))*samplerate;
 
@@ -346,13 +338,17 @@ if dippks(1)<maxpeak
 end
 
 [dimpks,dimlocs,dimw]=findpeaks(-di(1:lsys), 'NPeaks',1,'MinPeakHeight',0.7*max(-di)); % find one dI- peaks (Wb)
-[dippks(2),diplocs(2), dipw(2)]=findpeaks(flipud(di(1:lsys)), 'NPeaks',1,'MinPeakHeight',minpeak); % find 2nd dI+ peaks (Wf2) by flipping the data and running findpeak in the other direction
-diplocs(2)=lsys-diplocs(2);
 
+% % find 2nd dI+ peaks (Wf2) by flipping the data and running findpeak in the other direction
+% [dippks(2),diplocs(2),dipw(2)]=findpeaks(flipud(di(1:lsys)), 'NPeaks',1,'MinPeakHeight',minpeak); 
+% diplocs(2)=lsys-diplocs(2);
+% define peak Wf2 as peak following Wb
+[dippks(2),diplocs(2),dipw(2)]=findpeaks(di(dimlocs:lsys), 'NPeaks',1);
+diplocs(2)= diplocs(2)+dimlocs;                  % add dimlocs to locate in full trace
 %     % check peaks
 %     figure; hold on; plot(di); plot(diplocs(1),dippks(1),'ko');
 %     plot(dimlocs,-dimpks,'ro'); plot(diplocs(2),dippks(2),'ks');
-%
+
     % calculate peak time (s)
     dipt=diplocs/samplerate;
     dimt=dimlocs/samplerate;
@@ -376,8 +372,8 @@ diplocs(2)=lsys-diplocs(2);
         diparea(2)=0;
      end
 
-    % Estimate c (wavespeed) as k*dP/du where k is empirical constant
-    rhoc=max(aoPxs)*mmHgPa/1000; % units (m/s)
+ %% Estimate c (wavespeed) as k*dP/du where k is empirical constant
+ rhoc=max(aoPxs)*mmHgPa/1000; % units (m/s)
 %% possible problems with fits
 % ****** MORE TO DO HERE *********************
     if aoPinf_av>=dbp || aoPinf_av<-12 || aofita_av<=0 || aofitb_av<=0 || aorsq_av<0.9
@@ -396,7 +392,7 @@ diplocs(2)=lsys-diplocs(2);
     if ~exist(datafolder, 'dir')
     mkdir(datafolder);
     end
-    % save separate jpg (for viewing) wmf (for editing) svg (??)
+    % save svg 
     expression = 'xml';
     replace1 = 'wmf';
     replace2 ='jpg';
@@ -406,35 +402,37 @@ diplocs(2)=lsys-diplocs(2);
     svgfile = regexprep(filename,expression,replace3);
 
 %% Print figures
+    % make colors for lines
+    grayColor = [.7 .7 .7];
     % make a time variable for printing
-    Time_av=(1:length(baP_av))/samplerate;
     Time_all=(1:length(ba_p_all))/samplerate;
+    Time_av=(1:length(aoP_av))/samplerate;
     % Aortic pressure and reservoir
     figure('visible','off');                     % dont display figure
-    subplot(1,2,1); hold on;
-    plot(Time_all,ba_p_all);
-    % plot(sysloc/sampling_rate, P_all(sysloc),'ro');
-    % plot(dialoc/sampling_rate, P_all(dialoc),'rs');
+    subplot(1,2,1); hold on;plot(Time_all,ba_p_all,'Color',grayColor);
+    for i = 1:ssnumpulsesused 
+        plot((bapulseindexes(i):bapulseindexes(i+1))/samplerate,ba_p_all(bapulseindexes(i):bapulseindexes(i+1)),'g');
+    end
     xlabel('Time (s)')
     ylabel('BP (mmHg)')
-    title('Pulse traces')
+    title('Brachial pulse traces')
     box off;
-    subplot(1,2,2);
-    plot(Time_av,baP_av-baP_av(1),Time_av,baPr_av-baPr_av(1),'r', Time_av, baPxs,'k')
+    subplot(1,2,2); hold on; plot(Time_av,aoP_av,Time_av,aoPr_av,'r', Time_av, aoPxs,'k');
     xlabel('Time (s)')
     ylabel('BP (mmHg)')
-    title('Brachial P, Pres, Pxs')
+    title('Central P, Pres, Pxs')
     box off;
     % print ('-dmeta', '-r300' , [figfolder wmffile]);
     % print ('-dsvg', '-r300' , [figfolder svgfile]);   % not working in microsoft programs despite claims
     print ('-djpeg', '-r300' , [figfolder jpgfile]);
-
+        
     % WI
     figure('visible','off');                            % dont display figure
     TimeDI=(1:length(di))/samplerate;
-    plot (TimeDI, di); hold on;                         % to allow for new length
+    hold on; plot (TimeDI, di);                         % to allow for new length
     plot(dipt(1),dippks(1),'ko');
-    plot(dimt,-dimpks,'ro'); plot(dipt(2),dippks(2),'ks');
+    plot(dimt,-dimpks,'ro'); 
+    plot(dipt(2),dippks(2),'ks');
     xlabel('Time (s)')
     ylabel('dI (W/m^2/cycle^2)')
     title('Wave intensity with Wf1, Wb, Wf2 identified')
@@ -443,8 +441,7 @@ diplocs(2)=lsys-diplocs(2);
     jpgfile1 = regexprep(filename,'.xml','w.jpg');
     % print ('-dmeta', '-r300' , [figfolder wmffile1]);
     print ('-djpeg', '-r300' , [figfolder jpgfile1]);
-    drawnow();                  % added to attempt to stop java leak
-
+   
     % P, Pf, Pb
     figure('visible','off');                     % dont display figure
     Time_av=(1:length(aoPf_av))/samplerate;
@@ -456,50 +453,52 @@ diplocs(2)=lsys-diplocs(2);
     jpgfile2 = regexprep(filename,'.xml','fb.jpg');
     % print ('-dmeta', '-r300' , [figfolder wmffile2]);
     print ('-djpeg', '-r300' , [figfolder jpgfile2]);
-    drawnow();                  % added to attempt to stop java leak
+   
 
 
-    % SEVR
-    figure('visible','on');                     % dont display figure
-    hold on;
-
-    x = 1:length(ao_p_av);
-    xScale=5;
-    plot(x,ao_p_av)
-    xlabel('Sample ( 0.005 ms/sample (200 Hz))')
-    ylabel('BP (mmHg)')
-    base=min(ao_p_av);
-    dicroticNotchIdx=fix(ssSEP*samplerate);
-    if (lsys <= dicroticNotchIdx)
-        fill_between(1:length(ao_p_av),ao_p_av, base, x <= lsys, 'FaceColor', [0.8 0.8 1]);
-        fill_between(1:length(ao_p_av),ao_p_av, base, x >= lsys & x <= dicroticNotchIdx , 'FaceColor', [1 0.8 1]);
-        fill_between(1:length(ao_p_av),ao_p_av, base, x >= dicroticNotchIdx, 'FaceColor', [1 0.8 0.8]);
-    else
-        fill_between(1:length(ao_p_av),ao_p_av, base, x <= dicroticNotchIdx, 'FaceColor', [0.8 0.8 1]);
-        fill_between(1:length(ao_p_av),ao_p_av, base, x >= dicroticNotchIdx & x <= lsys , 'FaceColor', [1 1 0.8]);
-        fill_between(1:length(ao_p_av),ao_p_av, base, x >= lsys, 'FaceColor', [1 0.8 0.8]);
-    end
-
-    x = [lsys,lsys];
-    y = [base,ao_p_av(lsys)];
-    plot(x,y);
-    x = [dicroticNotchIdx,dicroticNotchIdx];
-    y = [base,ao_p_av(dicroticNotchIdx)];
-    plot(x,y);
-    sevr_title = sprintf('%s SEVR=%3.0f %% cAIx=%3.0f %% cAP=%3.0f %% cPP=%3.0f %%',filename,ao_sevr*100,ao_ai,aosbp-aoPi,aopp);
-    title(sevr_title)
-    cAIx_txt = sprintf('\\leftarrow max t=%4.3f',aoTmax);
-    text((aoTi*samplerate)+1,ao_p_av(aoTi*samplerate),cAIx_txt);
-    maxnegdPdt_txt = sprintf('\\leftarrow max -dP/dt @ t=%4.3f',lsys/samplerate);
-    text((lsys+1),ao_p_av(lsys),maxnegdPdt_txt);
-    dicroticNotchIdx_txt = sprintf('\\leftarrow notch @ t=%4.3f',dicroticNotchIdx/samplerate);
-    text(dicroticNotchIdx+1,ao_p_av(dicroticNotchIdx),dicroticNotchIdx_txt);
-    text((lsys/2),base+10,'SPTI');
-    text((lsys+lsys/2),base+10,'DPTI');
-    sevr_txt = sprintf('SEVR=%3.0f %%',ao_sevr*100);
-    text((lsys+lsys),ao_p_av(lsys)-10,sevr_txt);
-    jpgfile_sevr = regexprep(filename,'.xml','sevr.jpg');
-    print ('-djpeg', '-r300' , [figfolder jpgfile_sevr]);
+%     % SEVR
+%     figure('visible','on');                     % dont display figure
+%     hold on;
+% % 
+%     x = 1:length(ao_p_av);
+%     xScale=5;
+%     plot(x,ao_p_av)
+%     xlabel('Sample ( 0.005 ms/sample (200 Hz))')
+%     ylabel('BP (mmHg)')
+%     base=min(ao_p_av);
+%     dicroticNotchIdx=fix(ssSEP*samplerate);
+%     if (lsys <= dicroticNotchIdx)
+%         fill_between(1:length(ao_p_av),ao_p_av, base, x <= lsys, 'FaceColor', [0.8 0.8 1]);
+%         fill_between(1:length(ao_p_av),ao_p_av, base, x >= lsys & x <= dicroticNotchIdx , 'FaceColor', [1 0.8 1]);
+%         fill_between(1:length(ao_p_av),ao_p_av, base, x >= dicroticNotchIdx, 'FaceColor', [1 0.8 0.8]);
+%     else
+%         fill_between(1:length(ao_p_av),ao_p_av, base, x <= dicroticNotchIdx, 'FaceColor', [0.8 0.8 1]);
+%         fill_between(1:length(ao_p_av),ao_p_av, base, x >= dicroticNotchIdx & x <= lsys , 'FaceColor', [1 1 0.8]);
+%         fill_between(1:length(ao_p_av),ao_p_av, base, x >= lsys, 'FaceColor', [1 0.8 0.8]);
+%     end
+% 
+%     x = [lsys,lsys];
+%     y = [base,ao_p_av(lsys)];
+%     plot(x,y);
+%     x = [dicroticNotchIdx,dicroticNotchIdx];
+%     y = [base,ao_p_av(dicroticNotchIdx)];
+%     plot(x,y);
+%     
+%     sevr_title = sprintf('%s SEVR=%3.0f %% cAIx=%3.0f %% cAP=%3.0f %% cPP=%3.0f %%',filename,ao_sevr*100,ao_ai,aosbp-aoPi,aopp);
+%     title(sevr_title)
+%     cAIx_txt = sprintf('\\leftarrow max t=%4.3f',aoTmax);
+%     text((aoTi*samplerate)+1,ao_p_av(aoTi*samplerate),cAIx_txt);
+%     maxnegdPdt_txt = sprintf('\\leftarrow max -dP/dt @ t=%4.3f',lsys/samplerate);
+%     text((lsys+1),ao_p_av(lsys),maxnegdPdt_txt);
+%     dicroticNotchIdx_txt = sprintf('\\leftarrow notch @ t=%4.3f',dicroticNotchIdx/samplerate);
+%     text(dicroticNotchIdx+1,ao_p_av(dicroticNotchIdx),dicroticNotchIdx_txt);
+%     text((lsys/2),base+10,'SPTI');
+%     text((lsys+lsys/2),base+10,'DPTI');
+%     sevr_txt = sprintf('SEVR=%3.0f %%',ao_sevr*100);
+%     text((lsys+lsys),ao_p_av(lsys)-10,sevr_txt);
+% 
+%     jpgfile_sevr = regexprep(filename,'.xml','sevr.jpg');
+%     print ('-djpeg', '-r300' , [figfolder jpgfile_sevr]);
 
     % clear and close figures
     clear f1 f2
