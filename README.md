@@ -35,5 +35,5 @@ This project is licensed under the GNU General Public License v3.0 (https://gith
 
 ## Acknowledgments
 
-* I am grateful to Kim Parker who wrote much of the early code for reservoir analysis
+* I am grateful to Kim Parker and Justin Davies who contributed to development of code for reservoir analysis
 * I am grateful to Richard Scott for information about variables in the BP plus XML file. 
