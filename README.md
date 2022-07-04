@@ -22,7 +22,7 @@ The code is written in Matlab R2021a and aims to read BPplus files (\*.xml) obta
 Use of the code is described in the manual.
 
 ## Useful references
- - Davies JE, Baksi J, Francis DP, Hadjiloizou N, Whinnett ZI, Manisty CH, Aguado-Sierra J, Foale RA, Malik IS, Tyberg JV, Parker KH, Mayet J, Hughes AD. The arterial reservoir pressure increases with aging and is the major determinant of the aortic augmentation index. Am J Physiol Heart Circ Physiol. 2010 Feb;298(2):H580-6. doi: 10.1152/ajpheart.00875.2009. Epub 2009 Dec 11. PMID: 20008272
+ - Davies JE, Baksi J, Francis DP, Hadjiloizou N, Whinnett ZI, Manisty CH, Aguado-Sierra J, Foale RA, Malik IS, Tyberg JV, Parker KH, Mayet J, Hughes AD. The arterial reservoir pressure increases with aging and is the major determinant of the aortic augmentation index. Am J Physiol Heart Circ Physiol. 2010 Feb;298(2):H580-6. https://doi.org/10.1152/ajpheart.00875.2009. Epub 2009 Dec 11. PMID: 20008272
  - Alun Hughes, Chloe Park, Anenta Ramakrishnan, Jamil Mayet, Nish Chaturvedi, Kim Parker. Feasibility of estimation of aortic wave intensity using non-invasive pressure recordings in the absence of flow velocity in man. Front. Physiol., 2020; 11: 550. https://doi.org/10.3389/fphys.2020.00550
 
 ## Authors
