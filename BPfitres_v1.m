@@ -35,7 +35,7 @@ function  [Tn_av, Pinf_av, P_av,Pr_av,Pn_av,...
     
    
     % fit average beat using kreservoir
-    [Pr_av,fita_av,fitb_av,Pinf_av, Tn_av,Pn_av]=kreservoir_v14(P_av,T_av);
+    [Pr_av,fita_av,fitb_av,Pinf_av, Tn_av,Pn_av]=kreservoir_v14(P_av,T_av,samplerate);
 
     % Calculate R^2 (cofficient determination) for Pr fit in diastole
     xn=round(Tn_av*samplerate);         % parameters for length diastole for R2

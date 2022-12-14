@@ -1,7 +1,7 @@
 % bpp_Res2
-%% batch analysis of BP+ to give results like Sphygmocor and do reservoir and WI analysis 
-%% Copyright 2019 Alun Hughes based on some original code by Kim Parker 
-% Also uses xml2struct.m by W. Falkena, ASTI, TUDelft, 21-08-2010 with additional 
+%% batch analysis of BP+ to give results like Sphygmocor and do reservoir and WI analysis
+%% Copyright 2019 Alun Hughes based on some original code by Kim Parker
+% Also uses xml2struct.m by W. Falkena, ASTI, TUDelft, 21-08-2010 with additional
 % modifications by A. Wanner, I Smirnov & Chao-Yuan Yeh
 % and fill_between.m originally written by Ben Vincent, July 2014. Inspired by a
 % function of the same name available in the Matplotlib Python library.
@@ -20,15 +20,15 @@
 % http://www.gnu.org/licenses/gpl.html
 
 %% Versions
-% bpp_res2 (beta3) - beta version adapted to read old and new BPplus 
+% bpp_res2 (beta3) - beta version adapted to read old and new BPplus
 % Incorporates information and suggestions from Richard Scott.
 % Minor bug fixes to alternative folder setting, propagating default
 % folder throughout the program and acknowledging use of 'fill_between.m'
-%%%%%%%%%%%%%%%% 
-% Things to do 
-% - check quality of individual beats since they seem poor at present (todo) 
-% - check SEVR and notch approach (todo) 
-% - calculate other sphygmocor parameters (todo) 
+%%%%%%%%%%%%%%%%
+% Things to do
+% - check quality of individual beats since they seem poor at present (todo)
+% - check SEVR and notch approach (todo)
+% - calculate other sphygmocor parameters (todo)
 %%%%%%%%%%%%%%%%
 %% m files required to be in directory
 % ai_v1
@@ -42,10 +42,10 @@
     mmHgPa = 133;          % P conversion for WIA
     uconst=1;              % Empirical constant to convert normalized velocity to m/s
     Npoly=3;               % Order of polynomial fit for sgolay
-    Frame=9;               % Window length for sgolay based on (Rivolo et al.  
-                           % IEEE Engineering in Medicine and Biology Society 
+    Frame=9;               % Window length for sgolay based on (Rivolo et al.
+                           % IEEE Engineering in Medicine and Biology Society
                            % Annual Conference 2014; 2014: 5056-9.
-    bpp_version='3beta';   % Version of bRes_bpp   
+    bpp_version='4beta';   % Version of bRes_bpp
 %% Select files
 folder_name ='C:\BPPdata\'; % standard directory changed to reflect new xml files
 % check that folder name exists and if not allows new folder to be chosen
@@ -75,16 +75,17 @@ proc_var=cell(no_of_files,headernumber);
 
 %% Start loop through all files
 for file_number=1:no_of_files
-% refresh filename 
+% refresh filename
 filename=file_lists(record_no).name;
 [data] = xml2struct([folder_name filename]);
 
 % progress bar
     % open waitbar
+    msg = strcat('Processing file: ',filename);
     if record_no==1
-        h = waitbar(record_no/no_of_files,'Processing files...');
+        h = waitbar(record_no/no_of_files, msg);
     else
-        waitbar(record_no/no_of_files,h,'Processing files...');
+        waitbar(record_no/no_of_files, h, msg);
     end
 
 %% Read Data from CardioScope legacy xml
@@ -139,6 +140,21 @@ if sum(strcmp(fieldnames(data), 'CardioScope')) == 1
     a1=cumsum(aa)-min(cumsum(aa))+min(a);    % reconstruct
     ao_p_av =a1(locmin1:locmin2-1)';         % crop to cycle
     clear a0 a aa a1;
+    
+    % start of pulses.
+    baTransitTime = 0.18;
+    if (contains(data.CardioScope.MeasDataLogger.Attributes.software_version,"038"))
+        baTransitTime = 0.06;
+    end
+    aoOffset = round(baTransitTime * samplerate);
+    ssBeatStartIdxs=str2double(split(data.CardioScope.Results.Result.ssBeatStartIdxs.Text,','));
+    cPulseStartIndexes = ssBeatStartIdxs - aoOffset;
+    for i = 1:length(cPulseStartIndexes)
+        if cPulseStartIndexes(i)<0
+              cPulseStartIndexes(i)=0;
+        end
+    end
+
 else
     %% Read Data from BPplus xml
     % extract BPplus values
@@ -150,13 +166,13 @@ else
     samplerate=str2double(data.BPplus.MeasDataLogger.SampleRate.Text);          % sample rate, Hz
     aosbp=str2double(data.BPplus.Results.Result.cSys.Text);                     % cSBP calculated by BP+, mmHg
     aodbp=str2double(data.BPplus.Results.Result.cDia.Text);                     % cDBP calculated by BP+, mmHg
-    aopp=aosbp-dbp;                                                             % cPP calculated by BP+, mmHg
+    aopp=aosbp-aodbp;                                                           % cPP calculated by BP+, mmHg
     snr=str2double(data.BPplus.Results.Result.SNR.Text);                        % Signal to noise ratio, dB
     ss_rmssd=str2double(data.BPplus.Results.Result.sPRV.Text);                  % RMSSD from suprasystolic signal
     ss_ai=str2double(data.BPplus.Results.Result.sAI.Text);                      % AI from suprasystolic signal
     ssdpdt=str2double(data.BPplus.Results.Result.sDpDtMax.Text);                % dp/dt from suprasystolic signal in uncorrected units
     %ssHARM= Can be calculated from sAI if needed
-    ssPP=str2double(data.BPplus.Results.Result.sPP.Text);                       % Suprasystolic Pulse Pressure in the Cuff. [units?? ss units?]
+    ssPP=str2double(data.BPplus.Results.Result.sPP.Text);                       % Suprasystolic Pulse Pressure in the Cuff, mmHg (PP in cuff is small)
     ssPPV=str2double(data.BPplus.Results.Result.sPPV.Text);                     % Pulse pressure variation, % [?]
     ssRWTTFoot=str2double(data.BPplus.Results.Result.sRWTTFoot.Text);           % reflected wave transit time from foot of suprasystolic signal
     ssRWTTPeak=str2double(data.BPplus.Results.Result.sRWTTPeak.Text);           % reflected wave transit time from peak of suprasystolic signal
@@ -194,7 +210,7 @@ else
     quality='Unacceptable';
 end
 
-% fprintf("%s %s snr=%d\n",msg, quality, snr); % not working 
+% fprintf("%s %s snr=%d\n",msg, quality, snr); % not working
 
 %% don't process poor or unacceptable files.
 if snr >=6
@@ -285,9 +301,9 @@ ba_dpdt=max(diff(ba_p_av))*samplerate;
 % aoTn and baTn are not necessarily the same - which is better is uncertain
 % but on the basis that its aortic not brachial which is the cardiac load
 % we'll use that.
-% sub endocardial viability ratio (SEVR) 
+% sub endocardial viability ratio (SEVR)
 % SEVR = diastolic pressure-time integral(DPTI)/systolic pressure-time integral(SPTI)
-% 
+%
 lsys=round(aoTn_av*samplerate);
 ao_spti=trapz(ao_p_av(1:lsys));
 ao_dpti=trapz(ao_p_av(lsys+1:end));
