@@ -45,7 +45,7 @@
     Frame=9;               % Window length for sgolay based on (Rivolo et al.  
                            % IEEE Engineering in Medicine and Biology Society 
                            % Annual Conference 2014; 2014: 5056-9.
-    bpp_version='3beta';   % Version of bRes_bpp   
+    bpp_version='4beta';   % Version of bRes_bpp
 %% Select files
 folder_name ='C:\BPPdata\'; % standard directory changed to reflect new xml files
 % check that folder name exists and if not allows new folder to be chosen
