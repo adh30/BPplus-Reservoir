@@ -8,7 +8,7 @@ Method for wave intensity analysis is based on: Alun Hughes, Chloe Park, Anenta 
 Feasibility of estimation of aortic wave intensity using non-invasive pressure recordings in the absence of flow velocity in man.
 Front. Physiol., 2020; 11: 550. https://doi.org/10.3389/fphys.2020.00550
 
-I am grateful to Richard Scott for information about variables in the BP plus XML file. 
+I am grateful to Richard Scott for information about variables in the BP plus XML file and some additional code. 
 
 Known bugs
 * identification of end-systole unreliable. SEVR estimates dubious when this fails. 
