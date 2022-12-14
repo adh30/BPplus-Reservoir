@@ -157,7 +157,7 @@ else
     ss_ai=str2double(data.BPplus.Results.Result.sAI.Text);                      % AI from suprasystolic signal
     ssdpdt=str2double(data.BPplus.Results.Result.sDpDtMax.Text);                % dp/dt from suprasystolic signal in uncorrected units
     %ssHARM= Can be calculated from sAI if needed
-    ssPP=str2double(data.BPplus.Results.Result.sPP.Text);                       % Suprasystolic Pulse Pressure in the Cuff. [units?? ss units?]
+    ssPP=str2double(data.BPplus.Results.Result.sPP.Text);                       % Suprasystolic Pulse Pressure in the Cuff, mmHg (PP in cuff is small)
     ssPPV=str2double(data.BPplus.Results.Result.sPPV.Text);                     % Pulse pressure variation, % [?]
     ssRWTTFoot=str2double(data.BPplus.Results.Result.sRWTTFoot.Text);           % reflected wave transit time from foot of suprasystolic signal
     ssRWTTPeak=str2double(data.BPplus.Results.Result.sRWTTPeak.Text);           % reflected wave transit time from peak of suprasystolic signal
