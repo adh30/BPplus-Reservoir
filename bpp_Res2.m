@@ -151,7 +151,7 @@ else
     samplerate=str2double(data.BPplus.MeasDataLogger.SampleRate.Text);          % sample rate, Hz
     aosbp=str2double(data.BPplus.Results.Result.cSys.Text);                     % cSBP calculated by BP+, mmHg
     aodbp=str2double(data.BPplus.Results.Result.cDia.Text);                     % cDBP calculated by BP+, mmHg
-    aopp=aosbp-dbp;                                                             % cPP calculated by BP+, mmHg
+    aopp=aosbp-aodbp;                                                           % cPP calculated by BP+, mmHg
     snr=str2double(data.BPplus.Results.Result.SNR.Text);                        % Signal to noise ratio, dB
     ss_rmssd=str2double(data.BPplus.Results.Result.sPRV.Text);                  % RMSSD from suprasystolic signal
     ss_ai=str2double(data.BPplus.Results.Result.sAI.Text);                      % AI from suprasystolic signal
