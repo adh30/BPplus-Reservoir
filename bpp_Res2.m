@@ -1,7 +1,7 @@
 % bpp_Res2
-%% batch analysis of BP+ to give results like Sphygmocor and do reservoir and WI analysis 
-%% Copyright 2019 Alun Hughes based on some original code by Kim Parker 
-% Also uses xml2struct.m by W. Falkena, ASTI, TUDelft, 21-08-2010 with additional 
+%% batch analysis of BP+ to give results like Sphygmocor and do reservoir and WI analysis
+%% Copyright 2019 Alun Hughes based on some original code by Kim Parker
+% Also uses xml2struct.m by W. Falkena, ASTI, TUDelft, 21-08-2010 with additional
 % modifications by A. Wanner, I Smirnov & Chao-Yuan Yeh
 % and fill_between.m originally written by Ben Vincent, July 2014. Inspired by a
 % function of the same name available in the Matplotlib Python library.
@@ -20,15 +20,15 @@
 % http://www.gnu.org/licenses/gpl.html
 
 %% Versions
-% bpp_res2 (beta3) - beta version adapted to read old and new BPplus 
+% bpp_res2 (beta3) - beta version adapted to read old and new BPplus
 % Incorporates information and suggestions from Richard Scott.
 % Minor bug fixes to alternative folder setting, propagating default
 % folder throughout the program and acknowledging use of 'fill_between.m'
-%%%%%%%%%%%%%%%% 
-% Things to do 
-% - check quality of individual beats since they seem poor at present (todo) 
-% - check SEVR and notch approach (todo) 
-% - calculate other sphygmocor parameters (todo) 
+%%%%%%%%%%%%%%%%
+% Things to do
+% - check quality of individual beats since they seem poor at present (todo)
+% - check SEVR and notch approach (todo)
+% - calculate other sphygmocor parameters (todo)
 %%%%%%%%%%%%%%%%
 %% m files required to be in directory
 % ai_v1
@@ -42,8 +42,8 @@
     mmHgPa = 133;          % P conversion for WIA
     uconst=1;              % Empirical constant to convert normalized velocity to m/s
     Npoly=3;               % Order of polynomial fit for sgolay
-    Frame=9;               % Window length for sgolay based on (Rivolo et al.  
-                           % IEEE Engineering in Medicine and Biology Society 
+    Frame=9;               % Window length for sgolay based on (Rivolo et al.
+                           % IEEE Engineering in Medicine and Biology Society
                            % Annual Conference 2014; 2014: 5056-9.
     bpp_version='4beta';   % Version of bRes_bpp
 %% Select files
@@ -75,7 +75,7 @@ proc_var=cell(no_of_files,headernumber);
 
 %% Start loop through all files
 for file_number=1:no_of_files
-% refresh filename 
+% refresh filename
 filename=file_lists(record_no).name;
 [data] = xml2struct([folder_name filename]);
 
@@ -210,7 +210,7 @@ else
     quality='Unacceptable';
 end
 
-% fprintf("%s %s snr=%d\n",msg, quality, snr); % not working 
+% fprintf("%s %s snr=%d\n",msg, quality, snr); % not working
 
 %% don't process poor or unacceptable files.
 if snr >=6
@@ -301,9 +301,9 @@ ba_dpdt=max(diff(ba_p_av))*samplerate;
 % aoTn and baTn are not necessarily the same - which is better is uncertain
 % but on the basis that its aortic not brachial which is the cardiac load
 % we'll use that.
-% sub endocardial viability ratio (SEVR) 
+% sub endocardial viability ratio (SEVR)
 % SEVR = diastolic pressure-time integral(DPTI)/systolic pressure-time integral(SPTI)
-% 
+%
 lsys=round(aoTn_av*samplerate);
 ao_spti=trapz(ao_p_av(1:lsys));
 ao_dpti=trapz(ao_p_av(lsys+1:end));
