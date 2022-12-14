@@ -81,10 +81,11 @@ filename=file_lists(record_no).name;
 
 % progress bar
     % open waitbar
+    msg = strcat('Processing file: ',filename);
     if record_no==1
-        h = waitbar(record_no/no_of_files,'Processing files...');
+        h = waitbar(record_no/no_of_files, msg);
     else
-        waitbar(record_no/no_of_files,h,'Processing files...');
+        waitbar(record_no/no_of_files, h, msg);
     end
 
 %% Read Data from CardioScope legacy xml
