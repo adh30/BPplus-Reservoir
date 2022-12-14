@@ -140,6 +140,21 @@ if sum(strcmp(fieldnames(data), 'CardioScope')) == 1
     a1=cumsum(aa)-min(cumsum(aa))+min(a);    % reconstruct
     ao_p_av =a1(locmin1:locmin2-1)';         % crop to cycle
     clear a0 a aa a1;
+    
+    % start of pulses.
+    baTransitTime = 0.18;
+    if (contains(data.CardioScope.MeasDataLogger.Attributes.software_version,"038"))
+        baTransitTime = 0.06;
+    end
+    aoOffset = round(baTransitTime * samplerate);
+    ssBeatStartIdxs=str2double(split(data.CardioScope.Results.Result.ssBeatStartIdxs.Text,','));
+    cPulseStartIndexes = ssBeatStartIdxs - aoOffset;
+    for i = 1:length(cPulseStartIndexes)
+        if cPulseStartIndexes(i)<0
+              cPulseStartIndexes(i)=0;
+        end
+    end
+
 else
     %% Read Data from BPplus xml
     % extract BPplus values
