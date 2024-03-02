@@ -1,4 +1,3 @@
-% bpp_Res2
 %% batch analysis of BP+ to give results like Sphygmocor and do reservoir and WI analysis
 %% Copyright 2019 Alun Hughes based on some original code by Kim Parker
 % Also uses xml2struct.m by W. Falkena, ASTI, TUDelft, 21-08-2010 with additional
@@ -49,8 +48,8 @@
 %% Select files
 folder_name ='C:\BPPdata\'; % standard directory changed to reflect new xml files
 % check that folder name exists and if not allows new folder to be chosen
-if ~exist('C:\BPPdata\', 'dir')
-      answer = questdlg('C:\BPPdata_new\ doesnt exist. Would you like to choose another folder?', ...
+if ~exist(folder_name, 'dir')
+      answer = questdlg(folder_name + 'doesnt exist. Would you like to choose another folder?', ...
 	'BPplus Data Folder','Yes', 'No [end]','Yes');
 % Handle response
     switch answer

@@ -56,7 +56,7 @@ end
 
 
 %Name type (A, B or C)
-if tmax>ti
+if tmax>=ti
    if ai>=12
       typetxt=('Type A');
    elseif ai<12
