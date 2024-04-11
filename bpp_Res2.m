@@ -19,9 +19,9 @@
 % http://www.gnu.org/licenses/gpl.html
 
 %% Versions
-% bpp_res2 (beta4) - modifications by Richard Scott to ai_v1 merged
+% bpp_res2 (beta4) - modifications to ai_v1 based on suggestions from Richard Scott
 % bpp_res2 (beta3) - beta version adapted to read old and new BPplus
-% Incorporates information and suggestions from Richard Scott.
+% Incorporates additional information and suggestions from Richard Scott.
 % Minor bug fixes to alternative folder setting, propagating default
 % folder throughout the program and acknowledging use of 'fill_between.m'
 %%%%%%%%%%%%%%%%

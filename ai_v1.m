@@ -2,15 +2,18 @@
 function [ai, Pi, Tfoot, Ti, Tmax, typetxt] = ai_v1(p,samplerate)
 % Originally written as a script by ADH 12.6.01
 % reconfigured as a function 19/04/19
-% calculates AIx according to Kelly method and
-% classifies waveform according to Murgo
-% uses zero 4th derivative to determine first shoulder
-% AI = max pressure- inflection pressure/pulse pressure (Ps-Pi)/(Ps-Pd)
-% Refs
-% Kelly et al., Circ 1989; 80: 1652-1659.
-% Murgo et al., Circ 1980; 62: 105-116.
-% McDonald's Blood Flow in Arteries Nichols & O'Rourke 1998.
-% Diagnostic Applanation Tonometry M. Karamanoglu 1996. 
+% Bug fix suggested by Richard Scott implemented 11.04.24
+% Calculates AIx according to Kelly method and
+% classifies waveform according to Murgo et al.
+% Uses zero 4th derivative to determine first shoulder
+% AI = (max pressure - inflection pressure)/pulse pressure (Ps-Pi)/(Ps-Pd) %
+% References
+% Kelly R, Hayward C, Avolio A, O'Rourke M. Noninvasive determination 
+% of age-related changes in the human arterial pulse. Circulation 1989; 80(6): 1652-9.
+% Murgo JP, Westerhof N, Giolma JP, Altobelli SA. Aortic input impedance in normal man:
+% relationship to pressure wave forms. Circulation 1980; 62(1): 105-16.
+% Nichols & O'Rourke. McDonald's Blood Flow in Arteries 1998.
+% M. Karamanoglu. Diagnostic Applanation Tonometry 1996. 
 %%
 samples=1:length(p);
 % map = trapz(x)/length(x);
@@ -34,8 +37,7 @@ zeroslope=d5p(zcross); %establish where zeros correspond to negative slope d5p -
 tfoot=zcross(1);
 ti=zcross(3);
 
-
-% Allow for type B & C otherwise Pi may = Ps - choice of 5 samples (0.025ms) is arbitrary
+% Allow for type B & C otherwise Pi may = Ps.  The choice of 5 samples (0.025ms) is arbitrary
 if tmax-ti<5
    ti=zcross(4);
 end
@@ -54,21 +56,19 @@ if tmax<ti
    ai=-ai;
 end
 
-
-%Name type (A, B or C)
+% Name as type (A, B or C) based on criteria in Murgo et al., Circ 1980; 62: 105-116.
 if tmax>=ti
-   if ai>=12
+   if ai>12
       typetxt=('Type A');
-   elseif ai<12
+   elseif ai<=12
       typetxt=('Type B');
    end
 elseif tmax<ti
    typetxt=('Type C');
 end
 
-
 end
-
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% FUNCTIONS
 %%
 function y=mminterp(tab,col,val)
