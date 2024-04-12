@@ -1,4 +1,4 @@
-%% kreservoir13  -  calculate reservoir pressure from pressure waveform
+%% kreservoir14  -  calculate reservoir pressure from pressure waveform
 %  Copyright 2008 Kim H Parker with some additions from Alun Hughes [ADH] 
 %  This software is distributed under under the terms of the GNU General Public License
 %  This program is free software: you can redistribute it and/or modify
@@ -182,19 +182,19 @@ end
 Rdiff=R-Rexp_inline; 
 end
  
-%% kexpint.m  -  calculate the exponential integral Z = I_0^t Y*exp(at)dt
-function Z=kexpint(Y,T,A)
-%   inputs  Y(t) - row vector
-%           T    - duration of Y
-%           A    - exponential factor
-%   Outputs Z    - row vector
-N=length(Y)-1;
-t=(0:N)*T/N;
-dt=t(2)-t(1);
-% calculate integral of y using trapezoidal rule
-ye=Y.*exp(A*t);
-Z=(cumtrapz(ye))*dt;
-end
+% %% kexpint.m  -  calculate the exponential integral Z = I_0^t Y*exp(at)dt
+% function Z=kexpint(Y,T,A)
+% %   inputs  Y(t) - row vector
+% %           T    - duration of Y
+% %           A    - exponential factor
+% %   Outputs Z    - row vector
+% N=length(Y)-1;
+% t=(0:N)*T/N;
+% dt=t(2)-t(1);
+% % calculate integral of y using trapezoidal rule
+% ye=Y.*exp(A*t);
+% Z=(cumtrapz(ye))*dt;
+% end
 
 %% dias_int
 % calculate the indefinite integral during whole beat, returning Pr_dias

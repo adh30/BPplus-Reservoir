@@ -2,10 +2,10 @@ function  outStruct  = xml2struct(input)
 %XML2STRUCT converts xml file into a MATLAB structure
 %
 % outStruct = xml2struct2(input)
-% 
+%
 % xml2struct2 takes either a java xml object, an xml file, or a string in
-% xml format as input and returns a parsed xml tree in structure. 
-% 
+% xml format as input and returns a parsed xml tree in structure.
+%
 % Please note that the following characters are substituted
 % '-' by '_dash_', ':' by '_colon_' and '.' by '_dot_'
 %
@@ -16,14 +16,14 @@ function  outStruct  = xml2struct(input)
 % Modified by Chao-Yuan Yeh, August 2016
 
 errorMsg = ['%s is not in a supported format.\n\nInput has to be',...
-        ' a java xml object, an xml file, or a string in xml format.'];
+    ' a java xml object, an xml file, or a string in xml format.'];
 
 % check if input is a java xml object
 if isa(input, 'org.apache.xerces.dom.DeferredDocumentImpl') ||...
         isa(input, 'org.apache.xerces.dom.DeferredElementImpl')
     xDoc = input;
 else
-    try 
+    try
         if exist(input, 'file') == 2
             xDoc = xmlread(input);
         else
@@ -44,14 +44,14 @@ end
 
 % parse xDoc into a MATLAB structure
 outStruct = parseChildNodes(xDoc);
-    
+
 end
 
 % ----- Local function parseChildNodes -----
 function [children, ptext, textflag] = parseChildNodes(theNode)
 % Recurse over node children.
 children = struct;
-ptext = struct; 
+ptext = struct;
 textflag = 'Text';
 
 if hasChildNodes(theNode)
@@ -62,7 +62,7 @@ if hasChildNodes(theNode)
 
         theChild = item(childNodes,count-1);
         [text, name, attr, childs, textflag] = getNodeData(theChild);
-        
+
         if ~strcmp(name,'#text') && ~strcmp(name,'#comment') && ...
                 ~strcmp(name,'#cdata_dash_section')
             % XML allows the same elements to be defined multiple times,
@@ -75,7 +75,7 @@ if hasChildNodes(theNode)
                 index = length(children.(name))+1;
                 % add new element
                 children.(name){index} = childs;
-                
+
                 textfields = fieldnames(text);
                 if ~isempty(textfields)
                     for ii = 1:length(textfields)
@@ -83,14 +83,14 @@ if hasChildNodes(theNode)
                             text.(textfields{ii});
                     end
                 end
-                if(~isempty(attr)) 
-                    children.(name){index}.('Attributes') = attr; 
+                if(~isempty(attr))
+                    children.(name){index}.('Attributes') = attr;
                 end
             else
                 % add previously unknown (new) element to the structure
-                
+
                 children.(name) = childs;
-                
+
                 % add text data ( ptext returned by child node )
                 textfields = fieldnames(text);
                 if ~isempty(textfields)
@@ -99,8 +99,8 @@ if hasChildNodes(theNode)
                     end
                 end
 
-                if(~isempty(attr)) 
-                    children.(name).('Attributes') = attr; 
+                if(~isempty(attr))
+                    children.(name).('Attributes') = attr;
                 end
             end
         else
@@ -111,7 +111,7 @@ if hasChildNodes(theNode)
                 ptextflag = 'Comment';
             end
 
-            % this is the text in an element (i.e., the parentNode) 
+            % this is the text in an element (i.e., the parentNode)
             if (~isempty(regexprep(text.(textflag),'[\s]*','')))
                 if (~isfield(ptext,ptextflag) || isempty(ptext.(ptextflag)))
                     ptext.(ptextflag) = text.(textflag);
@@ -141,8 +141,8 @@ name = strrep(name, '.', '_dot_');
 name = strrep(name, '_', 'u_');
 
 attr = parseAttributes(theNode);
-if (isempty(fieldnames(attr))) 
-    attr = []; 
+if (isempty(fieldnames(attr)))
+    attr = [];
 end
 
 %parse child nodes
@@ -157,7 +157,7 @@ end
 % if any(strcmp(methods(theNode),'getData'))
 %   text.(textflag) = char(getData(theNode));
 % end
-    
+
 end
 
 % ----- Local function parseAttributes -----
@@ -165,19 +165,19 @@ function attributes = parseAttributes(theNode)
 % Create attributes structure.
 attributes = struct;
 if hasAttributes(theNode)
-   theAttributes = getAttributes(theNode);
-   numAttributes = getLength(theAttributes);
+    theAttributes = getAttributes(theNode);
+    numAttributes = getLength(theAttributes);
 
-   for count = 1:numAttributes
+    for count = 1:numAttributes
         % Suggestion of Adrian Wanner
         str = char(toString(item(theAttributes,count-1)));
-        k = strfind(str,'='); 
+        k = strfind(str,'=');
         attr_name = str(1:(k(1)-1));
         attr_name = strrep(attr_name, '-', '_dash_');
         attr_name = strrep(attr_name, ':', '_colon_');
         attr_name = strrep(attr_name, '.', '_dot_');
         attributes.(attr_name) = str((k(1)+2):(end-1));
-   end
+    end
 end
 end
 
