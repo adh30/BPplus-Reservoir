@@ -15,8 +15,10 @@
 %% Versions
 % v1 First stable version(03/01/20) based on fitres_v5 and uses
 % kreservoir_v14
+% modified to use kreservoir15 13/04/24 ADH (trivial change so not renamed)
+
 %%
-function  [Tn_av, Pinf_av, P_av,Pr_av,Pn_av,...
+function [Tn_av, Pinf_av, P_av,Pr_av,Pn_av,...
     fita_av, fitb_av,rsq_av]=BPfitres_v1(p_av,samplerate)
 %%
 % analyse the average beat
@@ -34,7 +36,7 @@ cut=find(diffp<0,1,'last');
 P_av=p_av(1:cut);
 
 % fit average beat using kreservoir
-[Pr_av,fita_av,fitb_av,Pinf_av, Tn_av,Pn_av]=kreservoir_v14(P_av,T_av,samplerate);
+[Pr_av,fita_av,fitb_av,Pinf_av, Tn_av,Pn_av]=kreservoir_v15(P_av,T_av,samplerate);
 
 % Calculate R^2 (cofficient determination) for Pr fit in diastole
 xn=round(Tn_av*samplerate);         % parameters for length diastole for R2

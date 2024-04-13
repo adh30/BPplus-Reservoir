@@ -120,14 +120,15 @@ end
 %%
 function dx=fsg71(x)
 %% dx=fsg71(x)
-% 	7 point SavGol filter, 1st derivative
-%	input 	x
-%	output	dx
-%	corrected for time shift
+% 7 point SavGol filter, 1st derivative
+% input x
+% output dx
+% corrected for time shift
 %% 2nd order polynomial
 C=[.107143,.071429,.035714];
 %% 3rd order polynomial
 %C=[-.087302,.265873,.230159];
+B=zeros(1,3);
 for i=1:3
     B(i)=C(i);
 end
@@ -136,7 +137,6 @@ for i=5:7
     B(i)=-C(8-i);
 end
 A=[1,0];
-
 s=size(x,2);
 dx=filter(B,A,x);
 dx=[0,0,0,dx(7:s),0,0,0];

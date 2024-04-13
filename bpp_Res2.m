@@ -1,8 +1,8 @@
 %% batch analysis of BP+ data to perform pulse wave analysis, reservoir analysis and wave intensity analysis
 %% Copyright 2019 Alun Hughes based on some original code by Kim Parker
 % Also uses xml2struct.m by W. Falkena, ASTI, TUDelft, 21-08-2010 with additional
-% modifications by A. Wanner, I Smirnov & Chao-Yuan Yeh and fill_between.m 
-% originally written by Ben Vincent, July 2014. Inspired by a function of 
+% modifications by A. Wanner, I Smirnov & Chao-Yuan Yeh and fill_between.m
+% originally written by Ben Vincent, July 2014. Inspired by a function of
 % the same name available in the Matplotlib Python library.
 
 %%
@@ -37,21 +37,22 @@
 % kreservoir_v14.m
 % fill_between.m
 %% Constants
+bRes_version='beta5';   % Version of bRes_bpp
 kres_v='v14';           % Version tracking for reservoir fitting
 headernumber=53;        % Headers for columns of results (see end)
 mmHgPa = 133;           % P conversion for WIA
 uconst=1;               % Empirical constant to convert normalized velocity to m/s
 Npoly=3;                % Order of polynomial fit for sgolay
 Frame=9;                % Window length for sgolay based on (Rivolo et al.
-                        % IEEE Engineering in Medicine and Biology Society
-                        % Annual Conference 2014; 2014: 5056-9.
-bRes_version='beta5';   % Version of bRes_bpp
+% IEEE Engineering in Medicine and Biology Society
+% Annual Conference 2014; 2014: 5056-9.
+
 %% Select files
 folder_name ='C:\BPPdata\'; % standard directory changed to reflect new xml files
 % check that folder name exists and if not allows new folder to be chosen
 if ~exist(folder_name, 'dir')
     answer = questdlg(folder_name + 'doesnt exist. Would you like to choose another folder?', ...
-    	'BPplus Data Folder','Yes', 'No [end]','Yes');
+        'BPplus Data Folder','Yes', 'No [end]','Yes');
     % Handle response
     switch answer
         case 'Yes'
@@ -181,7 +182,7 @@ for file_number=1:no_of_files
         ssdpdt=str2double(data.BPplus.Results.Result.sDpDtMax.Text);                % dp/dt from suprasystolic signal in uncorrected units
         ssPP=str2double(data.BPplus.Results.Result.sPP.Text);                       % Suprasystolic Pulse Pressure in the Cuff, mmHg (PP in cuff is small)
         ssPPV=str2double(data.BPplus.Results.Result.sPPV.Text);                     % Pulse pressure variation, %
-        ssPRV=str2double(data.BPplus.Results.Result.sPRV.Text);                     % Pulse rate variation for selected pulses, ms 
+        ssPRV=str2double(data.BPplus.Results.Result.sPRV.Text);                     % Pulse rate variation for selected pulses, ms
         ssRWTTFoot=str2double(data.BPplus.Results.Result.sRWTTFoot.Text);           % Reflected wave transit time from foot of suprasystolic signal
         ssRWTTPeak=str2double(data.BPplus.Results.Result.sRWTTPeak.Text);           % Reflected wave transit time from peak of suprasystolic signal
         ssSEP=str2double(data.BPplus.Results.Result.sSEP.Text)/1000;                % Systolic ejection period, s
@@ -189,10 +190,10 @@ for file_number=1:no_of_files
         ba_p_all=str2double(split(data.BPplus.Results.Result.baEstimate.Text,',')); % brachial pulses
         sstxt = split(data.BPplus.Results.Result.sAveragePulse.Text,',');           % brachial average beat ** not scaled ** [scaled later]
         ao_p_all=str2double(split(data.BPplus.Results.Result.cEstimate.Text,','));  % aortic pulses
-        
+
         %pPX brachial pulsatility index (PP/MAP)
         %cPX aortic pulsatility index (aoPP/MAP)
-                
+
         % extract aortic data
         ao_p_av=str2double(split(data.BPplus.Results.Result.cAveragePulse.Text,','))';
         % start of pulses
@@ -210,7 +211,7 @@ for file_number=1:no_of_files
     else
         quality='Unacceptable';
     end
-    
+
     %% don't process poor or unacceptable files.
     if snr >=6
         %% brachial pulses
@@ -231,7 +232,7 @@ for file_number=1:no_of_files
         ba_p_all = ba_p_all(~isnan(ba_p_all));
 
         %% calculate individual selected pulses for later display
-        Selectedpulses = str2double(split(data.BPplus.Results.Result.sSelectedPulseIndexes.Text,','))+1; 
+        Selectedpulses = str2double(split(data.BPplus.Results.Result.sSelectedPulseIndexes.Text,','))+1;
         numgoodpulses = length(Selectedpulses);
         temp = str2double(split(data.BPplus.Results.Result.sPulseStartIndexes.Text,','));
         pulseindex = temp-(temp(1)-1);
@@ -270,7 +271,7 @@ for file_number=1:no_of_files
         end
         % remove NaNs
         ao_p_all = ao_p_all(~isnan(ao_p_all));
-        
+
         %% calculate aoAIx, Pi, Tfoot, Ti (T1), Tpeak(T2)
         [ao_ai, aoPi, aoTfoot, aoTi, aoTmax, aoTypetxt] = ai_v2(ao_p_av, samplerate);
         ao_Tr = aoTi-aoTfoot;
@@ -320,8 +321,8 @@ for file_number=1:no_of_files
         RI=max(aoPb_av)/(max(aoPf_av)+ max(aoPb_av));
 
         %% wave intensity analysis (only done on central P)
-        % convert Pxs to flow velocity and assume peak velocity, U = 1m/s. 
-        % Estimate of U based on Lindroos, M., et al. J Am Coll Cardiol 
+        % convert Pxs to flow velocity and assume peak velocity, U = 1m/s.
+        % Estimate of U based on Lindroos, M., et al. J Am Coll Cardiol
         % 1993; 21: 1220-1225.
         cu=uconst*(aoPxs/max(aoPxs));
         u=cu;
@@ -357,7 +358,7 @@ for file_number=1:no_of_files
 
         % Wb defined as the largest negative peak that follows Wf1
         [dimpks,dimlocs,dimw]=findpeaks(-di(1:lsys), 'NPeaks',1,'MinPeakHeight',0.7*max(-di)); % find one dI- peaks (Wb)
-        
+
         % Wf2 defined as largest positive peak when dp is negative
         [dippks(2),diplocs(2), dipw(2)]=findpeaks(di(lsys-20:lsys+20), 'NPeaks',1, 'SortStr','descend'); % find 2nd dI+ peaks (Wf2) on the asssumption it follows Wf2 and allowing 5 samples beyond length of systole.
         diplocs(2)=diplocs(2)+(lsys-20); % add lsys-20 since we are only searching from lsys-20
@@ -389,7 +390,7 @@ for file_number=1:no_of_files
         else
             prob =0;
         end
-        % *************should write error salvage sometime! 
+        % *************should write error salvage sometime!
 
         %% make figures and data subfolders
         figfolder=strcat(folder_name, 'figures\');
@@ -503,8 +504,8 @@ for file_number=1:no_of_files
         [maxPrb,max_trb]= max(baPr_av);     % maximum brachial reservoir pressure and time
         [maxPxsb,max_txsb]= max(baPxs);     % maximum brachial excess pressure and time
 
-        % wasted LV pressure energy (Ew) = 2.09Δtr (Ps − Pi). Nichols WW. 
-        % Clinical measurement of arterial stiffness obtained from 
+        % wasted LV pressure energy (Ew) = 2.09Δtr (Ps − Pi). Nichols WW.
+        % Clinical measurement of arterial stiffness obtained from
         % noninvasive pressure waveforms. Am J Hypertens 2005; 18(1 Pt 2): 3S-10S.
 
 
@@ -635,7 +636,7 @@ for file_number=1:no_of_files
         're_intaoxsp' 're_maxaoxsp' 're_tmaxaoxsp' 're_aotn' 're_aopinf' 're_aopn'...
         're_aofita' 're_aofitb' 're_aorsq' 're_prob' 're_kres'...
         're_aitype' 're_hr' 're_sbp2' 're_intbapr' 're_maxbapr' 're_tmaxbapr'...
-    	're_intbaxsp' 're_maxbaxsp' 're_tmaxbap' 're_bafita' 're_bafitb'...
+        're_intbaxsp' 're_maxbaxsp' 're_tmaxbap' 're_bafita' 're_bafitb'...
         're_barsq' 're_bapinf' 're_bapn' 're_ao_dpdt' 're_ba_dpdt'...
         're_pb_pf' 're_ri' 're_wf1i'  're_wf1t' 're_wf1a' 're_wbi' ...
         're_wbt' 're_wba' 're_wf2i'  're_wf2t' 're_wf2a'  're_wri' 're_rhoc' ...
