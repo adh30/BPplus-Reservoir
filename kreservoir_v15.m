@@ -1,4 +1,4 @@
-%% kreservoir14  -  calculate reservoir pressure from pressure waveform
+%% kreservoir15  -  calculate reservoir pressure from pressure waveform
 %  Copyright 2008 Kim H Parker with some additions from Alun Hughes [ADH] 
 %  This software is distributed under under the terms of the GNU General Public License
 %  This program is free software: you can redistribute it and/or modify
@@ -32,7 +32,7 @@
 %  log(P) in diastole if method of moments fails [ADH]
 %
 %%
-function [Pr,A,B,Pinf,Tn,Pn]=kreservoir_v14(P,Tb, sampling_rate)
+function [Pr,A,B,Pinf,Tn,Pn]=kreservoir_v15(P,Tb, sampling_rate)
 %   inputs  P    - pressure starting at diastolic pressure
 %           Tb   - duration of beat
 %           Tn   - time of start of diastole (if missing it is calculated
@@ -88,7 +88,8 @@ end
 % Rexp_inline=r;
 
 options=optimset('Display','iter','TolX',1e-16,'display','off');
-[y,~,~] =fzero(@ratio21,1,options);
+%y[y,~,~] =fzero(@ratio21,1,options);
+y[y,~,~] =fzero(@ratio21,1;options);
 if y >0
     BTd=y;
 else

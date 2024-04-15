@@ -13,8 +13,7 @@
 %  http://www.gnu.org/licenses/gpl.html
 
 %% Versions
-% v1 First stable version(03/01/20) based on fitres_v5 and uses
-% kreservoir_v14
+% v1 First stable version(03/01/20) based on fitres_v5 and uses kreservoir_v14
 % modified to use kreservoir15 13/04/24 ADH (trivial change so not renamed)
 
 %%

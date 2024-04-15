@@ -22,8 +22,8 @@
 % bpp_res2 (beta5) - in progress
 % bpp_res2 (beta4) - modifications to ai_v1 based on suggestions from Richard Scott
 % now renamed ai_v2.
-% bpp_res2 (beta3) - beta version adapted to read old and new BPplus
-% Incorporates additional information and suggestions from Richard Scott.
+% bpp_res2 (beta3) - beta version adapted to read old and new BPplus. Also
+% incorporates additional information and suggestions from Richard Scott.
 % Minor bug fixes to alternative folder setting, propagating default
 % folder throughout the program and acknowledging use of 'fill_between.m'
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -34,21 +34,22 @@
 % ai_v2.m
 % xml2struct.m
 % BPfitres_v1.m
-% kreservoir_v14.m
+% kreservoir_v15.m
 % fill_between.m
 %% Constants
 bRes_version='beta5';   % Version of bRes_bpp
-kres_v='v14';           % Version tracking for reservoir fitting
+kres_v='v15';           % Version tracking for reservoir fitting
 headernumber=53;        % Headers for columns of results (see end)
 mmHgPa = 133;           % P conversion for WIA
 uconst=1;               % Empirical constant to convert normalized velocity to m/s
 Npoly=3;                % Order of polynomial fit for sgolay
+unprocessed_no = 0;     % Number of unprocessed files
 Frame=9;                % Window length for sgolay based on (Rivolo et al.
 % IEEE Engineering in Medicine and Biology Society
 % Annual Conference 2014; 2014: 5056-9.
 
 %% Select files
-folder_name ='C:\BPPdata\'; % standard directory changed to reflect new xml files
+folder_name ='D:\BPPdata\'; % standard directory changed to reflect new xml files
 % check that folder name exists and if not allows new folder to be chosen
 if ~exist(folder_name, 'dir')
     answer = questdlg(folder_name + 'doesnt exist. Would you like to choose another folder?', ...
@@ -102,25 +103,26 @@ for file_number=1:no_of_files
         hr=str2double(data.CardioScope.MeasDataLogger.Hr.Text);                     % heart rate, bpm
         samplerate=str2double(data.CardioScope.MeasDataLogger.SampleRate.Text);     % sample rate, Hz
         aosbp=str2double(data.CardioScope.Results.Result.aoSys.Text);               % cSBP calculated by BP+, mmHg
-        aopp=aosbp-dbp;                                                             % cPP calculated by BP+, mmHg
+        aodbp=str2double(data.CardioScope.Results.Result.aoDia.Text);                % cDBP calculated by BP+, mmHg
+        aopp=aosbp-aodbp;                                                           % cPP calculated by BP+, mmHg
         snr=str2double(data.CardioScope.Results.Result.SNR.Text);                   % Signal to noise ratio, dB
         ss_rmssd=str2double(data.CardioScope.Results.Result.RMSSD.Text);            % RMSSD from suprasystolic signal
         ss_ai=str2double(data.CardioScope.Results.Result.ssAI.Text);                % AI from suprasystolic signal
         ssdpdt=str2double(data.CardioScope.Results.Result.ssDpDtMax.Text);          % dp/dt from suprasystolic signal in uncorrected units
         ssHARM=str2double(data.CardioScope.Results.Result.ssHARM.Text);             % Normalized sAI
-        ssPP=str2double(data.CardioScope.Results.Result.ssPP.Text);                 % Suprasystolic Pulse Pressure
+        ssPP=str2double(data.CardioScope.Results.Result.ssPP.Text);                 % Suprasystolic Pulse Pressure in the cuff, mmHg (PP in cuff is small)
         ssPPV=str2double(data.CardioScope.Results.Result.ssPPV.Text);               % Suprasystolic Pulse Pressure Variation, %
         ssRWTTFoot=str2double(data.CardioScope.Results.Result.ssRWTTFoot.Text);     % reflected wave transit time from foot of suprasystolic signal
         ssRWTTPeak=str2double(data.CardioScope.Results.Result.ssRWTTPeak.Text);     % reflected wave transit time from peak of suprasystolic signal
         ssSEP=str2double(data.CardioScope.Results.Result.ssSEP.Text);               % Systolic ejection period, s
-        bppalgo=data.CardioScope.Results.Result.Attributes.algorithm_revision;         % Software algorithm
+        bppalgo=data.CardioScope.Results.Result.Attributes.algorithm_revision;      % Software algorithm
         Tx=split(data.CardioScope.Results.Result.ssAverageBeatPointsIdxs.Text,','); % Times of characteristic points?
         % Timings of peaks dont match waveforms - seems to be a bug or possibly
         % timings are from foot rather than beginning of waveform?
-        % T1=str2double(Tn(2));                                                       % Time of 1st peak in samples
-        % T2=str2double(Tn(3));                                                       % Time of inflection in samples
-        % T3=str2double(Tn(4));                                                       % Time of 2nd peak in samples
-        % T4=str2double(Tn(5));                                                       % Time of nadir of dichrotic notch
+        % T1=str2double(Tn(2));                                                     % Time of 1st peak in samples
+        % T2=str2double(Tn(3));                                                     % Time of inflection in samples
+        % T3=str2double(Tn(4));                                                     % Time of 2nd peak in samples
+        % T4=str2double(Tn(5));                                                     % Time of nadir of dichrotic notch
         datestring=data.CardioScope.MeasDataLogger.Attributes.datetime;             % Date as text string
         % brachial pulses
         ba_p_all=str2double(split(data.CardioScope.Results.Result.baEstimate.Text,','));
@@ -182,7 +184,7 @@ for file_number=1:no_of_files
         ssdpdt=str2double(data.BPplus.Results.Result.sDpDtMax.Text);                % dp/dt from suprasystolic signal in uncorrected units
         ssPP=str2double(data.BPplus.Results.Result.sPP.Text);                       % Suprasystolic Pulse Pressure in the Cuff, mmHg (PP in cuff is small)
         ssPPV=str2double(data.BPplus.Results.Result.sPPV.Text);                     % Pulse pressure variation, %
-        ssPRV=str2double(data.BPplus.Results.Result.sPRV.Text);                     % Pulse rate variation for selected pulses, ms
+        ssPRV=str2double(data.BPplus.Results.Result.sPRV.Text);                     % Pulse rate variation for selected pulses, ms (Root mean square of successive RR interval differences, RMSSD)
         ssRWTTFoot=str2double(data.BPplus.Results.Result.sRWTTFoot.Text);           % Reflected wave transit time from foot of suprasystolic signal
         ssRWTTPeak=str2double(data.BPplus.Results.Result.sRWTTPeak.Text);           % Reflected wave transit time from peak of suprasystolic signal
         ssSEP=str2double(data.BPplus.Results.Result.sSEP.Text)/1000;                % Systolic ejection period, s
@@ -190,6 +192,8 @@ for file_number=1:no_of_files
         ba_p_all=str2double(split(data.BPplus.Results.Result.baEstimate.Text,',')); % brachial pulses
         sstxt = split(data.BPplus.Results.Result.sAveragePulse.Text,',');           % brachial average beat ** not scaled ** [scaled later]
         ao_p_all=str2double(split(data.BPplus.Results.Result.cEstimate.Text,','));  % aortic pulses
+        Selectedpulses = str2double(split(data.BPplus.Results.Result.sSelectedPulseIndexes.Text,','))+1; % selected pulses
+        sPIndex = str2double(split(data.BPplus.Results.Result.sPulseStartIndexes.Text,','));
 
         %pPX brachial pulsatility index (PP/MAP)
         %cPX aortic pulsatility index (aoPP/MAP)
@@ -213,7 +217,7 @@ for file_number=1:no_of_files
     end
 
     %% don't process poor or unacceptable files.
-    if snr >=6
+    if snr >=6 
         %% brachial pulses
         % replace values at start and end <DBP and >SBP with NaN
         % deal with low early values
@@ -231,21 +235,19 @@ for file_number=1:no_of_files
         % remove NaNs
         ba_p_all = ba_p_all(~isnan(ba_p_all));
 
-        %% calculate individual selected pulses for later display
-        Selectedpulses = str2double(split(data.BPplus.Results.Result.sSelectedPulseIndexes.Text,','))+1;
+        % calculate individual selected pulses for later display
         numgoodpulses = length(Selectedpulses);
-        temp = str2double(split(data.BPplus.Results.Result.sPulseStartIndexes.Text,','));
-        pulseindex = temp-(temp(1)-1);
+        pulseindex = sPIndex-(sPIndex(1)-1);
         pulselengths = diff(pulseindex);
         pulsewaveforms=NaN(max(pulselengths),numgoodpulses);
-        clear temp
+        clear sPIndex
 
         for i = 1:numgoodpulses
             crop=ba_p_all(pulseindex(i):pulseindex(i+1));
             pulsewaveforms(1:length(crop),i)=crop;
         end
 
-        %% brachial average beat
+        % brachial average beat
         %sstxt = split(data.CardioScope.Results.Result.ssAverageBeat.Text,',');
         %b_avp_av=zeros(size(sstxt,1),size(sstxt,2));
         ba_p_av=str2double(sstxt);
@@ -253,7 +255,7 @@ for file_number=1:no_of_files
         ba_p_av=dbp+(ba_p_av*calss_p);
         ssdpdt=ssdpdt*calss_p;                                                      % correcting to mmHg/s
 
-        %% aortic pulses
+        % aortic pulses
         ao_p_all=ao_p_all(cPulseStartIndexes(1):cPulseStartIndexes(length(cPulseStartIndexes)));
         %%ao_p_all=str2double(split(data.CardioScope.Results.Result.aoEstimate.Text,','));
         % replace values at start and end <DBP and >SBP with NaN
@@ -272,7 +274,7 @@ for file_number=1:no_of_files
         % remove NaNs
         ao_p_all = ao_p_all(~isnan(ao_p_all));
 
-        %% calculate aoAIx, Pi, Tfoot, Ti (T1), Tpeak(T2)
+        % calculate aoAIx, Pi, Tfoot, Ti (T1), Tpeak(T2)
         [ao_ai, aoPi, aoTfoot, aoTi, aoTmax, aoTypetxt] = ai_v2(ao_p_av, samplerate);
         ao_Tr = aoTi-aoTfoot;
         aoPidbp = aoPi-dbp;
@@ -305,7 +307,6 @@ for file_number=1:no_of_files
         % we'll use that.
         % sub endocardial viability ratio (SEVR)
         % SEVR = diastolic pressure-time integral(DPTI)/systolic pressure-time integral(SPTI)
-        %
         lsys=round(aoTn_av*samplerate);
         ao_spti=trapz(ao_p_av(1:lsys));
         ao_dpti=trapz(ao_p_av(lsys+1:end));
@@ -565,6 +566,10 @@ for file_number=1:no_of_files
         proc_var{record_no,52}='bpp_Res2 (beta2)';                              % version of bpp_Res
         proc_var{record_no,53}=quality;                                         % quality index
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    else
+        % Error trap for low SNR and message
+        unprocessed_no = unprocessed_no+1;
+        disp(strcat(filename, ' not processed due to poor quality'));
     end
 
     %% increment record number
@@ -645,14 +650,15 @@ for file_number=1:no_of_files
     % % writetable
     Results_table=cell2table(proc_var, 'VariableNames',header);
     writetable(Results_table, xlsfile);
-
 end
 %% Tidy up
 % rather than clearing the workspace for now I've left all non-redundant
 % variables so that they can be used for debugging
-clear p ptxt del dt i avlbeat b_qc calss_p xx yy zx sstxt newend extra ans a aa sstxt cuxwia;
+% clear cuxwia;
 
 % message at end
 msg=string(no_of_files);
 msg=strcat(msg, " files processed");
 msgbox(msg, 'Done');
+
+
