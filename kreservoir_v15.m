@@ -80,16 +80,15 @@ E2=(pde2(1)+4*sum(pde2(2:2:N))+2*sum(pde2(3:2:N))+pde2(N+1))*dt/3;
 if (mod(N,2))
     E2=E2+(pde2(N)+pde2(N+1))*dt/6;
 end
-% r=E2/E1;
+r=E2/E1;
 
 % commented out as appeared redundant
 % invert R(BTd)=r
-% global Rexp_inline     % defined below
-% Rexp_inline=r;
+global Rexp_inline     % defined below
+Rexp_inline=r;
 
 options=optimset('Display','iter','TolX',1e-16,'display','off');
-%y[y,~,~] =fzero(@ratio21,1,options);
-y[y,~,~] =fzero(@ratio21,1;options);
+[y,~,~] =fzero(@ratio21,1,options);
 if y >0
     BTd=y;
 else
