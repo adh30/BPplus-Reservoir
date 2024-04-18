@@ -79,10 +79,6 @@ proc_var=cell(no_of_files,headernumber);
 for file_number=1:no_of_files
     % refresh filename
     filename=file_lists(record_no).name;
-    [data] = xml2struct([folder_name filename]);
-
-    %file ID (i.e. filname without the .xml
-    fileID = extractBefore( filename , '.xml');
 
     % progress bar
     % open waitbar
@@ -93,203 +89,30 @@ for file_number=1:no_of_files
         waitbar(record_no/no_of_files, h, msg);
     end
 
-    %% Read Data from CardioScope legacy xml
-    if sum(strcmp(fieldnames(data), 'CardioScope')) == 1
-        % extract CardioScope values
-        ba_sbp=str2double(data.CardioScope.MeasDataLogger.Sys.Text);                % brachial systolic BP, mmHg
-        dbp=str2double(data.CardioScope.MeasDataLogger.Dia.Text);                   % diastolic BP, mmHg
-        ba_pp=ba_sbp-dbp;                                                           % brachial pulse pressure, mmHg
-        map=str2double(data.CardioScope.MeasDataLogger.Mean.Text);                  % mean arterial pressure, mmHg
-        hr=str2double(data.CardioScope.MeasDataLogger.Hr.Text);                     % heart rate, bpm
-        samplerate=str2double(data.CardioScope.MeasDataLogger.SampleRate.Text);     % sample rate, Hz
-        aosbp=str2double(data.CardioScope.Results.Result.aoSys.Text);               % cSBP calculated by BP+, mmHg
-        aodbp=str2double(data.CardioScope.Results.Result.aoDia.Text);                % cDBP calculated by BP+, mmHg
-        aopp=aosbp-aodbp;                                                           % cPP calculated by BP+, mmHg
-        snr=str2double(data.CardioScope.Results.Result.SNR.Text);                   % Signal to noise ratio, dB
-        ss_rmssd=str2double(data.CardioScope.Results.Result.RMSSD.Text);            % RMSSD from suprasystolic signal
-        ss_ai=str2double(data.CardioScope.Results.Result.ssAI.Text);                % AI from suprasystolic signal
-        ssdpdt=str2double(data.CardioScope.Results.Result.ssDpDtMax.Text);          % dp/dt from suprasystolic signal in uncorrected units
-        ssHARM=str2double(data.CardioScope.Results.Result.ssHARM.Text);             % Normalized sAI
-        ssPP=str2double(data.CardioScope.Results.Result.ssPP.Text);                 % Suprasystolic Pulse Pressure in the cuff, mmHg (PP in cuff is small)
-        ssPPV=str2double(data.CardioScope.Results.Result.ssPPV.Text);               % Suprasystolic Pulse Pressure Variation, %
-        ssRWTTFoot=str2double(data.CardioScope.Results.Result.ssRWTTFoot.Text);     % reflected wave transit time from foot of suprasystolic signal
-        ssRWTTPeak=str2double(data.CardioScope.Results.Result.ssRWTTPeak.Text);     % reflected wave transit time from peak of suprasystolic signal
-        ssSEP=str2double(data.CardioScope.Results.Result.ssSEP.Text);               % Systolic ejection period, s
-        bppalgo=data.CardioScope.Results.Result.Attributes.algorithm_revision;      % Software algorithm
-        Tx=split(data.CardioScope.Results.Result.ssAverageBeatPointsIdxs.Text,','); % Times of characteristic points?
-        % Timings of peaks dont match waveforms - seems to be a bug or possibly
-        % timings are from foot rather than beginning of waveform?
-        % T1=str2double(Tn(2));                                                     % Time of 1st peak in samples
-        % T2=str2double(Tn(3));                                                     % Time of inflection in samples
-        % T3=str2double(Tn(4));                                                     % Time of 2nd peak in samples
-        % T4=str2double(Tn(5));                                                     % Time of nadir of dichrotic notch
-        datestring=data.CardioScope.MeasDataLogger.Attributes.datetime;             % Date as text string
-        % brachial pulses
-        ba_p_all=str2double(split(data.CardioScope.Results.Result.baEstimate.Text,','));
-        % brachial average beat
-        sstxt = split(data.CardioScope.Results.Result.ssAverageBeat.Text,',');
-        % aortic pulses
-        ao_p_all=str2double(split(data.CardioScope.Results.Result.aoEstimate.Text,','));
-        % aortic average beat, ao_p_av
-        a0=str2double(split(data.CardioScope.Results.Result.aoAverageBeat.Text,','));
-        % create a double beat' to deal with the errors in definition of dbp
-        a=[a0; a0];
-        plot(a);
-        % identify start and end of beat as minima
-        [~, locmin1]=min(a);
-        [~, locmin2]=min(a(locmin1+50:end));
-        locmin2=locmin2+locmin1+50;
-        plot(a(locmin1:locmin2));
-
-        % filter derivative of new beat with SG to get rid of kinks at or around join
-        aa = sgolayfilt(diff(a),Npoly,Frame); % filter the derivative - order and framelen defined above
-        a1=cumsum(aa)-min(cumsum(aa))+min(a);    % reconstruct
-        ao_p_av =a1(locmin1:locmin2-1)';         % crop to cycle
-        clear a0 a aa a1;
-
-        % start of pulses.
-        baTransitTime = 0.18;
-        if (contains(data.CardioScope.MeasDataLogger.Attributes.software_version,"038"))
-            baTransitTime = 0.06;
-        end
-        aoOffset = round(baTransitTime * samplerate);
-        ssBeatStartIdxs=str2double(split(data.CardioScope.Results.Result.ssBeatStartIdxs.Text,','));
-        cPulseStartIndexes = ssBeatStartIdxs - aoOffset;
-        for i = 1:length(cPulseStartIndexes)
-            if cPulseStartIndexes(i)<0
-                cPulseStartIndexes(i)=0;
-            end
-        end
-    else
-        %% Read Data from BPplus xml
-        % extract BPplus values
-        bppvers=data.BPplus.MeasDataLogger.Attributes.version;                      % Software version
-        bppalgo=data.BPplus.Results.Result.Attributes.algorithm_revision;           % Software algorithm
-        % Mode is only available in later versions of xml
-        if isfield(data,'NibpMode')
-            mode = string(data.BPplus.MeasDataLogger.NibpModeUsed.Text);            % Measurement mode
-        end
-        datestring=data.BPplus.MeasDataLogger.Attributes.datetime;                  % Date as text string
-        ba_sbp=str2double(data.BPplus.MeasDataLogger.Sys.Text);                     % brachial systolic BP, mmHg
-        dbp=str2double(data.BPplus.MeasDataLogger.Dia.Text);                        % diastolic BP, mmHg
-        ba_pp=ba_sbp-dbp;                                                           % brachial pulse pressure, mmHg
-        map=str2double(data.BPplus.MeasDataLogger.Map.Text);                        % mean arterial pressure, mmHg
-        hr=str2double(data.BPplus.MeasDataLogger.Pr.Text);                          % heart rate, bpm
-        samplerate=str2double(data.BPplus.MeasDataLogger.SampleRate.Text);          % sample rate, Hz
-        aosbp=str2double(data.BPplus.Results.Result.cSys.Text);                     % cSBP calculated by BP+, mmHg
-        aodbp=str2double(data.BPplus.Results.Result.cDia.Text);                     % cDBP calculated by BP+, mmHg
-        aopp=aosbp-aodbp;                                                           % cPP calculated by BP+, mmHg
-        snr=str2double(data.BPplus.Results.Result.SNR.Text);                        % Signal to noise ratio, dB
-        ss_ai=str2double(data.BPplus.Results.Result.sAI.Text);                      % AI from suprasystolic signal
-        ssdpdt=str2double(data.BPplus.Results.Result.sDpDtMax.Text);                % dp/dt from suprasystolic signal in uncorrected units
-        ssPP=str2double(data.BPplus.Results.Result.sPP.Text);                       % Suprasystolic Pulse Pressure in the Cuff, mmHg (PP in cuff is small)
-        ssPPV=str2double(data.BPplus.Results.Result.sPPV.Text);                     % Pulse pressure variation, %
-        ssPRV=str2double(data.BPplus.Results.Result.sPRV.Text);                     % Pulse rate variation for selected pulses, ms (Root mean square of successive RR interval differences, RMSSD)
-        ssRWTTFoot=str2double(data.BPplus.Results.Result.sRWTTFoot.Text);           % Reflected wave transit time from foot of suprasystolic signal
-        ssRWTTPeak=str2double(data.BPplus.Results.Result.sRWTTPeak.Text);           % Reflected wave transit time from peak of suprasystolic signal
-        ssSEP=str2double(data.BPplus.Results.Result.sSEP.Text)/1000;                % Systolic ejection period, s
-        baTx=str2double(split(data.BPplus.Results.Result.sAveragePulsePointsIndexes.Text,',')); % Times of pulse points (1-6) see diagram
-        ba_p_all=str2double(split(data.BPplus.Results.Result.baEstimate.Text,',')); % brachial pulses
-        sstxt = split(data.BPplus.Results.Result.sAveragePulse.Text,',');           % brachial average beat ** not scaled ** [scaled later]
-        ao_p_all=str2double(split(data.BPplus.Results.Result.cEstimate.Text,','));  % aortic pulses
-        Selectedpulses = str2double(split(data.BPplus.Results.Result.sSelectedPulseIndexes.Text,','))+1; % selected pulses
-        sPIndex = str2double(split(data.BPplus.Results.Result.sPulseStartIndexes.Text,','));
-
-        %pPX brachial pulsatility index (PP/MAP)
-        %cPX aortic pulsatility index (aoPP/MAP)
-
-        % extract aortic data
-        ao_p_av=str2double(split(data.BPplus.Results.Result.cAveragePulse.Text,','))';
-        % start of pulses
-        cPulseStartIndexes=str2double(split(data.BPplus.Results.Result.cPulseStartIndexes.Text,','));
-    end
-    %% categorise quality based on SNR
-    if snr>=12
-        quality='Excellent';
-    elseif snr>=9
-        quality='Good';
-    elseif snr>=6
-        quality='Acceptable';
-    elseif snr>0
-        quality='Poor';
-    else
-        quality='Unacceptable';
-    end
+    %% Read BP+ xml file (Both legacy 'CardioScope' and current 'BPplus' xml are supported.)
+    [data, metadata, ss, ba, ao]=read_BPplus(folder_name, filename, Npoly, Frame);
+    samplerate=metadata.samplerate;                                 % assign to local variable to simplify use of this common value
 
     %% don't process poor or unacceptable files.
-    if snr >=6 
-        %% brachial pulses
-        % replace values at start and end <DBP and >SBP with NaN
-        % deal with low early values
-        for i = 1:200
-            if ba_p_all(i)<dbp
-                ba_p_all(i) = NaN;
-            end
-        end
-        % deal with high end values
-        for i = length(ba_p_all)-200:length(ba_p_all)
-            if ba_p_all(i)>ba_sbp
-                ba_p_all(i) = NaN;
-            end
-        end
-        % remove NaNs
-        ba_p_all = ba_p_all(~isnan(ba_p_all));
-
-        % calculate individual selected pulses for later display
-        numgoodpulses = length(Selectedpulses);
-        pulseindex = sPIndex-(sPIndex(1)-1);
-        pulselengths = diff(pulseindex);
-        pulsewaveforms=NaN(max(pulselengths),numgoodpulses);
-        clear sPIndex
-
-        for i = 1:numgoodpulses
-            crop=ba_p_all(pulseindex(i):pulseindex(i+1));
-            pulsewaveforms(1:length(crop),i)=crop;
-        end
-
-        % brachial average beat
-        %sstxt = split(data.CardioScope.Results.Result.ssAverageBeat.Text,',');
-        %b_avp_av=zeros(size(sstxt,1),size(sstxt,2));
-        ba_p_av=str2double(sstxt);
-        calss_p=ba_pp/(max(ba_p_av)-min(ba_p_av));
-        ba_p_av=dbp+(ba_p_av*calss_p);
-        ssdpdt=ssdpdt*calss_p;                                                      % correcting to mmHg/s
-
-        % aortic pulses
-        ao_p_all=ao_p_all(cPulseStartIndexes(1):cPulseStartIndexes(length(cPulseStartIndexes)));
-        %%ao_p_all=str2double(split(data.CardioScope.Results.Result.aoEstimate.Text,','));
-        % replace values at start and end <DBP and >SBP with NaN
-        % deal with low early values
-        for i = 1:200
-            if ao_p_all(i)<dbp
-                ao_p_all(i) = NaN;
-            end
-        end
-        % deal with high end values
-        for i = length(ao_p_all)-200:length(ao_p_all)
-            if ao_p_all(i)>aosbp
-                ao_p_all(i) = NaN;
-            end
-        end
-        % remove NaNs
-        ao_p_all = ao_p_all(~isnan(ao_p_all));
+    if metadata.snr >=6
 
         % calculate aoAIx, Pi, Tfoot, Ti (T1), Tpeak(T2)
-        [ao_ai, aoPi, aoTfoot, aoTi, aoTmax, aoTypetxt] = ai_v2(ao_p_av, samplerate);
-        ao_Tr = aoTi-aoTfoot;
-        aoPidbp = aoPi-dbp;
+        [ao_ai, ao_Pi, ao_Tfoot, ao_Ti, ao_Tmax, ao_Typetxt] = ai_v2(ao.p_av, samplerate);
+        ao_Tr = ao_Ti-ao_Tfoot;
+        ao_Piba_dbp = ao_Pi-ba.dbp;
 
         %% calculate aortic dp/dt
-        ao_dpdt=max(diff(ao_p_av))*samplerate;
+        ao_dpdt=max(diff(ao.p_av))*metadata.samplerate;
 
         %% do reservoir calculations for aortic pressure
-        [aoTn_av, aoPinf_av, aoP_av,aoPr_av,aoPn_av, aofita_av,aofitb_av, aorsq_av]=BPfitres_v1(ao_p_av,samplerate);
+        [aoTn_av, aoPinf_av, aoP_av, aoPr_av, aoPn_av, aofita_av, aofitb_av, aorsq_av]=BPfitres_v1(ao.p_av, samplerate);
         aoPxs=aoP_av-aoPr_av;
 
         %% do reservoir calculations for brachial pressure
         % assign p to pass to function
+        ba_p_av = ba.p_av;                                                      % TODO: is this what we want or actual ba.p_av?
         [baTn_av, baPinf_av, baP_av,baPr_av,baPn_av, bafita_av,...
-            bafitb_av, barsq_av]=BPfitres_v1(ba_p_av',samplerate);
+            bafitb_av, barsq_av]=BPfitres_v1(ba_p_av',metadata.samplerate);
 
         % calculate Pxs = P - Pres
         baPxs=baP_av-baPr_av;
@@ -297,7 +120,7 @@ for file_number=1:no_of_files
         % pAI
         [~, Tdiffpeaks]=findpeaks(diff(ba_p_av), 'Npeaks', 3);    % peaks of dP
         ba_p2=ba_p_av(Tdiffpeaks(2));
-        ba_ai=100*(ba_p2-dbp)/(ba_sbp-dbp); % peripheral augmentation index (%) uses definition in Munir S et al. Hypertension 2008; 51(1): 112-8.
+        ba_ai=100*(ba_p2-ba.dbp)/(ba.sbp-ba.dbp); % peripheral augmentation index (%) uses definition in Munir S et al. Hypertension 2008; 51(1): 112-8.
         ba_dpdt=max(diff(ba_p_av))*samplerate;
 
         %% calculate SEVR (aortic)
@@ -307,12 +130,12 @@ for file_number=1:no_of_files
         % sub endocardial viability ratio (SEVR)
         % SEVR = diastolic pressure-time integral(DPTI)/systolic pressure-time integral(SPTI)
         lsys=round(aoTn_av*samplerate);
-        ao_spti=trapz(ao_p_av(1:lsys));
-        ao_dpti=trapz(ao_p_av(lsys+1:end));
+        ao_spti=trapz(ao.p_av(1:lsys));
+        ao_dpti=trapz(ao.p_av(lsys+1:end));
         ao_sevr=ao_dpti/ao_spti;                    % SEVR (aortic)
         kliuinverse=ao_dpti/(ao_dpti+ao_spti);      % inverse of Liu constant, k
         pmean_sys=ao_spti/lsys;                     % mean pressure of systole
-        pmean_dia=ao_dpti/(length(ao_p_av)-lsys);   % mean pressure of diastole
+        pmean_dia=ao_dpti/(length(ao.p_av)-lsys);   % mean pressure of diastole
 
         %% Create estimates of Pf and Pb using the assumption that Pb = cPr/2
         aoPb_av=(aoPr_av-min(aoP_av))/2;
@@ -385,7 +208,7 @@ for file_number=1:no_of_files
 
         %% possible problems with fits
         % ****** MORE TO DO HERE *********************
-        if aoPinf_av>=dbp || aoPinf_av<-12 || aofita_av<=0 || aofitb_av<=0 || aorsq_av<0.9
+        if aoPinf_av>=ba.dbp || aoPinf_av<-12 || aofita_av<=0 || aofitb_av<=0 || aorsq_av<0.9
             prob=1;
         else
             prob =0;
@@ -409,11 +232,11 @@ for file_number=1:no_of_files
 
         %% Print figures
         % make a time variable for printing
-        Time_cycles=(1:length(pulsewaveforms))/samplerate;
+        Time_cycles=(1:length(ss.pulsewaveforms))/samplerate;
         % Aortic pressure and reservoir
-        figure('Name',fileID,'visible','on');
+        figure('Name',metadata.fileID,'visible','on');
         subplot(2,2,1);
-        plot(Time_cycles,pulsewaveforms);
+        plot(Time_cycles,ss.pulsewaveforms);
         xlabel('Time (s)')
         ylabel('BP (mmHg)')
         title('Pulse traces')
@@ -432,43 +255,43 @@ for file_number=1:no_of_files
         title('aortic P, Pres and Pxs')
         % SEVR
         subplot(2,2,3)
-        x = 1:length(ao_p_av);
+        x = 1:length(ao.p_av);
         % xScale=5;
-        plot(x,ao_p_av); hold on;
+        plot(x,ao.p_av); hold on;
         xlabel('Samples')
         ylabel('BP (mmHg)')
-        base=min(ao_p_av);
-        dicroticNotchIdx=fix(ssSEP*samplerate);         % This uses the BP+ determined time of dicrotic notch.
+        base=min(ao.p_av);
+        dicroticNotchIdx=fix(ss.sep*samplerate);         % This uses the BP+ determined time of dicrotic notch.
         if (lsys <= dicroticNotchIdx)
-            fill_between(1:length(ao_p_av),ao_p_av, base, x <= lsys, 'FaceColor', [0.8 0.8 1]);
-            fill_between(1:length(ao_p_av),ao_p_av, base, x >= lsys & x <= dicroticNotchIdx , 'FaceColor', [1 0.8 1]);
-            fill_between(1:length(ao_p_av),ao_p_av, base, x >= dicroticNotchIdx, 'FaceColor', [1 0.8 0.8]);
+            fill_between(1:length(ao.p_av),ao.p_av, base, x <= lsys, 'FaceColor', [0.8 0.8 1]);
+            fill_between(1:length(ao.p_av),ao.p_av, base, x >= lsys & x <= dicroticNotchIdx , 'FaceColor', [1 0.8 1]);
+            fill_between(1:length(ao.p_av),ao.p_av, base, x >= dicroticNotchIdx, 'FaceColor', [1 0.8 0.8]);
         else
-            fill_between(1:length(ao_p_av),ao_p_av, base, x <= dicroticNotchIdx, 'FaceColor', [0.8 0.8 1]);
-            fill_between(1:length(ao_p_av),ao_p_av, base, x >= dicroticNotchIdx & x <= lsys , 'FaceColor', [1 1 0.8]);
-            fill_between(1:length(ao_p_av),ao_p_av, base, x >= lsys, 'FaceColor', [1 0.8 0.8]);
+            fill_between(1:length(ao.p_av),ao.p_av, base, x <= dicroticNotchIdx, 'FaceColor', [0.8 0.8 1]);
+            fill_between(1:length(ao.p_av),ao.p_av, base, x >= dicroticNotchIdx & x <= lsys , 'FaceColor', [1 1 0.8]);
+            fill_between(1:length(ao.p_av),ao.p_av, base, x >= lsys, 'FaceColor', [1 0.8 0.8]);
         end
         x = [lsys,lsys];
-        y = [base,ao_p_av(lsys)];
+        y = [base,ao.p_av(lsys)];
         plot(x,y);
         x = [dicroticNotchIdx,dicroticNotchIdx];
-        y = [base,ao_p_av(dicroticNotchIdx)];
+        y = [base,ao.p_av(dicroticNotchIdx)];
         plot(x,y);
-        %sevr_title = sprintf('%s SEVR=%3.0f %% cAIx=%3.0f %% cAP=%3.0f %% cPP=%3.0f %%',filename,ao_sevr*100,ao_ai,aosbp-aoPi,aopp);
+        %sevr_title = sprintf('%s SEVR=%3.0f %% cAIx=%3.0f %% cAP=%3.0f %% cPP=%3.0f %%',filename,ao_sevr*100,ao_ai,ao.sbp-aoPi,ao.pp);
         title('SEVR')
         %cAIx_txt = sprintf('\\leftarrow T1',aoTmax);
         cAIx_txt = '\leftarrow T1';
-        text((aoTi*samplerate)+1,ao_p_av(aoTi*samplerate),cAIx_txt,'FontSize', 6);
+        text((ao_Ti*samplerate)+1,ao.p_av(ao_Ti*samplerate),cAIx_txt,'FontSize', 6);
         % if to catch when lsys==dicroticNotchIdx so they dont overwrite.
         if lsys~=dicroticNotchIdx
             maxnegdPdt_txt = '\leftarrow max(-dP/dt)';
-            text((lsys+1),ao_p_av(lsys),maxnegdPdt_txt,'FontSize', 6);
+            text((lsys+1),ao.p_av(lsys),maxnegdPdt_txt,'FontSize', 6);
         else
             maxnegdPdt_txt = 'max(-dP/dt) =';
-            text((lsys+1),ao_p_av(lsys)+.075*(max(ao_p_av)-base),maxnegdPdt_txt,'FontSize', 6);
+            text((lsys+1),ao.p_av(lsys)+.075*(max(ao.p_av)-base),maxnegdPdt_txt,'FontSize', 6);
         end
         dicroticNotchIdx_txt = '\leftarrow notch';
-        text(dicroticNotchIdx+1,ao_p_av(dicroticNotchIdx),dicroticNotchIdx_txt,'FontSize', 6);
+        text(dicroticNotchIdx+1,ao.p_av(dicroticNotchIdx),dicroticNotchIdx_txt,'FontSize', 6);
         text((lsys/2),base+10,'SPTI','FontSize', 6, HorizontalAlignment='center');
         text((lsys+lsys/2),base+10,'DPTI','FontSize', 6);
         % sevr_txt = sprintf('SEVR=%3.0f %%',ao_sevr*100);
@@ -512,14 +335,14 @@ for file_number=1:no_of_files
 
         %% write variables
         proc_var{record_no,1}=filename;                                         % filename
-        proc_var{record_no,2}=ba_sbp;                                           % brachial SBP, mmHg
+        proc_var{record_no,2}=ba.sbp;                                           % brachial SBP, mmHg
         proc_var{record_no,3}=max_tpb/samplerate;                               % time max brachial P (baSBP), s
-        proc_var{record_no,4}=dbp;                                              % min P, DBP, mmHg
+        proc_var{record_no,4}=ba.dbp;                                           % min P, ba.dbp, mmHg
         proc_var{record_no,5}=sum(aoPr_av)/samplerate;                          % integral aoPres, mmHg.s
         proc_var{record_no,6}=maxPra;                                           % max aoPres (aSBP), mmHg
         proc_var{record_no,7}=max_tra/samplerate;                               % Time max aoPres, sec
-        proc_var{record_no,8}=sum(aoPr_av-dbp)/samplerate;                      % integral aoPres-diastolic, mmHg.s
-        proc_var{record_no,9}=datestring;                                       % Date as text string
+        proc_var{record_no,8}=sum(aoPr_av-ba.dbp)/samplerate;                   % integral aoPres-diastolic, mmHg.s
+        proc_var{record_no,9}=metadata.datestring;                              % Date as text string
         proc_var{record_no,10}=samplerate;                                      % sampling rate, 1/sec [used to be time of max Pres-diastolic but since this == Time max Pres I replaced it with the sampling rate]
         proc_var{record_no,11}=sum(aoPxs)/samplerate;                           % Integral excess pressure, mmHg.s
         proc_var{record_no,12}=maxPxsa;                                         % max excess P, mmHg
@@ -532,9 +355,9 @@ for file_number=1:no_of_files
         proc_var{record_no,19}=aorsq_av;                                        % aortic R2 for diastolic fit
         proc_var{record_no,20}=prob;                                            % likely problem with fit
         proc_var{record_no,21}=kres_v;                                          % version kreservoir
-        proc_var{record_no,22}=aoTypetxt;                                       % AI type
-        proc_var{record_no,23}=hr;                                              % Heart rate, bpm
-        proc_var{record_no,24}=ba_p2;                                         % SBP2, mmHg
+        proc_var{record_no,22}=ao_Typetxt;                                      % AI type
+        proc_var{record_no,23}=ba.hr;                                           % Heart rate, bpm
+        proc_var{record_no,24}=ba_p2;                                           % SBP2, mmHg
         proc_var{record_no,25}=sum(baPr_av)/samplerate;                         % integral baPres, mmHg.s
         proc_var{record_no,26}=maxPrb;                                          % max baPres, mmHg
         proc_var{record_no,27}=max_trb/samplerate;                              % Time max Pres, sec
@@ -563,7 +386,7 @@ for file_number=1:no_of_files
         proc_var{record_no,50}=rhoc;                                            % rhoc
         proc_var{record_no,51}=ao_sevr;                                         % aortic SEVR
         proc_var{record_no,52}='bpp_Res2 (beta2)';                              % version of bpp_Res
-        proc_var{record_no,53}=quality;                                         % quality index
+        proc_var{record_no,53}=metadata.quality;                                % quality index
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     else
         % Error trap for low SNR and message
