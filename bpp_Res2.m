@@ -45,8 +45,7 @@ uconst=1;               % Empirical constant to convert normalized velocity to m
 Npoly=3;                % Order of polynomial fit for sgolay
 unprocessed_no = 0;     % Number of unprocessed files
 Frame=9;                % Window length for sgolay based on (Rivolo et al.
-% IEEE Engineering in Medicine and Biology Society
-% Annual Conference 2014; 2014: 5056-9.
+% IEEE Engineering in Medicine and Biology Society Annual Conference 2014; 2014: 5056-9.
 
 %% Select files
 folder_name ='D:\BPPdata\'; % standard directory changed to reflect new xml files
