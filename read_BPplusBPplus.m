@@ -15,9 +15,6 @@ function [metadata, ba, ao, ss] = read_BPplusBPplus(data)
 
     metadata.RawSuprasystolicPressure=measDataLogger.RawSuprasystolicPressure.Text;     % raw base 64 data
 
-    % assumed delay from aortic pulse to cuff.
-    metadata.baTransitTime = 0.06;                                                      % read from aolag or cLag?
-
     % Mode is only available in later versions of xml
     if isfield(data,'NibpMode')
         metadata.mode = string(data.BPplus.MeasDataLogger.NibpModeUsed.Text);           % Measurement mode
@@ -69,6 +66,6 @@ function [metadata, ba, ao, ss] = read_BPplusBPplus(data)
     ao.averagePulsePointsIndexes=str2double(split(result.cAveragePulsePointsIndexes.Text,','))+1;
 
 
-        %pPX brachial pulsatility index (PP/ba.map)
-        %cPX aortic pulsatility index (aoPP/ba.map)
+    %pPX brachial pulsatility index (PP/ba.map)
+    %cPX aortic pulsatility index (aoPP/ba.map)
 end

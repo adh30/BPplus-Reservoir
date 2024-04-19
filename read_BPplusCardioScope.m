@@ -46,7 +46,7 @@ function [metadata, ba, ao, ss] = read_BPplusCardioScope(data, Npoly, Frame)
     % calculated aortic measurements
     ao.sbp=str2double(result.aoSys.Text);                                               % cSBP calculated by BP+, mmHg
     ao.dbp=str2double(result.aoDia.Text);                                               % cDBP calculated by BP+, mmHg
-    %ao.map=str2double(result.aoMap.Text);                                               % cMAP calculated by BP+, mmHg
+    %ao.map=str2double(result.aoMap.Text);                                               % TODO: calculate from average beat? cMAP calculated by BP+, mmHg
     ao.pp=ao.sbp-ao.dbp;                                                                % cPP calculated by BP+, mmHg
     ao.ed = -1;                                                                         % TODO Calcualte ED as duration of systole. NOTE: BP+ cED is a %
 

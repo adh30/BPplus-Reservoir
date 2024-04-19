@@ -102,7 +102,7 @@ for file_number=1:no_of_files
         ao_Piba_dbp = ao_Pi-ba.dbp;
 
         %% calculate aortic dp/dt
-        ao_dpdt=max(diff(ao.p_av))*metadata.samplerate;
+        ao_dpdt=max(diff(ao.p_av))*samplerate;
 
         %% do reservoir calculations for aortic pressure
         [aoTn_av, aoPinf_av, aoP_av, aoPr_av, aoPn_av, aofita_av, aofitb_av, aorsq_av]=BPfitres_v1(ao.p_av, samplerate);
