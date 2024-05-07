@@ -1,11 +1,10 @@
 function  [data, metadata, ss, ba, ao]=read_BPplus(folder_name, filename, Npoly, Frame)
 
-if not (isfile([folder_name filename]))
+if ~isfile([folder_name filename])
+    disp("No BP+ xml file exists")
     return;
 end
 [data] = xml2struct([folder_name filename]);
-
-
 
 % Read Data from either CardioScope legacy xml or BPplus xml
 if sum(strcmp(fieldnames(data), 'CardioScope')) == 1

@@ -4,7 +4,9 @@ function [metadata, ba, ao, ss] = read_BPplusBPplus(data)
     measDataLogger = data.BPplus.MeasDataLogger;
     % meta data
     metadata.bppvers=measDataLogger.Attributes.version;                                 % Software version
-    metadata.nibp=measDataLogger.Attributes.nibp;                                       % nibp type
+    if isfield(measDataLogger.Attributes,'nibp')
+        metadata.nibp=measDataLogger.Attributes.nibp;                                       % nibp type
+    end
     metadata.datestring=measDataLogger.Attributes.datetime;                             % Date as text string
     metadata.guid = measDataLogger.Attributes.guid;                                     % Unique ID for this measurement
     metadata.bppalgo=result.Attributes.algorithm_revision;                              % Software algorithm
@@ -53,18 +55,26 @@ function [metadata, ba, ao, ss] = read_BPplusBPplus(data)
     ao.dbp=str2double(result.cDia.Text);                                                % cDBP calculated by BP+, mmHg
     ao.map=str2double(result.cMap.Text);                                                % cMAP calculated by BP+, mmHg
     ao.pp=ao.sbp-ao.dbp;                                                                % cPP calculated by BP+, mmHg
-    ao.ed=str2double(result.cST.Text)/1000;                                             % cED calculated by BP+. duration of systole. NOTE: BP+ cED is a %
-
+    if isfield(result,'cST')
+        ao.ed=str2double(result.cST.Text)/1000;                                         % cED calculated by BP+. duration of systole. NOTE: BP+ cED is a %
+    end
+    if isfield(result,'sSEP')
+        ao.ed=str2double(result.sSEP.Text)/1000;
+    end
+    
     %% aortic rhythm, average beat & start of pulses.
     ao.p_all=str2double(split(result.cEstimate.Text,','));
 
     % assumed delay from aortic pulse to cuff.
     ao.lag=str2double(result.cLag.Text);
     ao.pulseStartIndexes=str2double(split(result.cPulseStartIndexes.Text,','))+1;
-
     ao.p_av=str2double(split(result.cAveragePulse.Text,','))';
-    ao.averagePulsePointsIndexes=str2double(split(result.cAveragePulsePointsIndexes.Text,','))+1;
-
+    if isfield(result,'cAveragePulsePointsIndexes')
+        ao.averagePulsePointsIndexes=str2double(split(result.cAveragePulsePointsIndexes.Text,','))+1;
+    end
+    if isfield(result,'cAveragePulsePointsIndexes')
+        ao.averagePulsePointsIndexes=str2double(split(result.cPulseStartIndexes.Text,','))+1;
+    end
 
     %pPX brachial pulsatility index (PP/ba.map)
     %cPX aortic pulsatility index (aoPP/ba.map)

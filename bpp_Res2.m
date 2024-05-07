@@ -19,7 +19,7 @@
 % http://www.gnu.org/licenses/gpl.html
 
 %% Versions
-% bpp_res2 (beta5) - in progress
+% bpp_res2 (beta5) - *** IN PROGRESS ***
 % bpp_res2 (beta4) - modifications to ai_v1 based on suggestions from Richard Scott
 % now renamed ai_v2.
 % bpp_res2 (beta3) - beta version adapted to read old and new BPplus. Also
@@ -28,7 +28,12 @@
 % folder throughout the program and acknowledging use of 'fill_between.m'
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Things to do
-% - calculate other sphygmocor parameters (todo)
+    % fix trailing zeros (NaN in plots)
+    % suppress plots during processing
+    % scattered things in code from Richard
+    % expand outputs
+    % estimate SV / CO 
+    % estimate EF1 substitute
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% m files required to be in directory (in addition to bpp_Res2.m)
 % ai_v2.m
@@ -62,6 +67,10 @@ if ~exist(folder_name, 'dir')
             return
     end
 end
+% ensure subdirectories exist to be written to
+% TBD
+
+% identify xml files
 file_lists=dir(fullfile(folder_name, '*.xml'));
 no_of_files=length(file_lists);
 % add an error trap here if no files in folder
@@ -391,6 +400,7 @@ for file_number=1:no_of_files
         % Error trap for low SNR and message
         unprocessed_no = unprocessed_no+1;
         disp(strcat(filename, ' not processed due to poor quality'));
+        % close(h);
     end
 
     %% increment record number
@@ -477,9 +487,9 @@ end
 % variables so that they can be used for debugging
 % clear cuxwia;
 
-% message at end
+% % message at end
 msg=string(no_of_files);
 msg=strcat(msg, " files processed");
-msgbox(msg, 'Done');
-
+% msgbox(msg, 'Done');
+disp(msg) 
 

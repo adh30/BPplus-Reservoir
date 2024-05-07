@@ -6,11 +6,11 @@ function [metadata, ba, ao, ss] = read_BPplusCardioScope(data, Npoly, Frame)
     metadata.bppvers=measDataLogger.Attributes.version;                                 % Software version
     metadata.nibp=measDataLogger.Attributes.nibp;                                       % nibp type
     metadata.datestring=measDataLogger.Attributes.datetime;                             % Date as text string
-    metadata.guid = measDataLogger.Attributes.guid;                                     % Unique ID for this measurement
+    metadata.guid = measDataLogger.Attributes.device_id;                                     % Unique ID for this measurement
     metadata.bppalgo=result.Attributes.algorithm_revision;                              % Software algorithm
     metadata.samplerate=str2double(measDataLogger.SampleRate.Text);                     % sample rate, Hz
     metadata.snr=str2double(result.SNR.Text);                                           % Signal to noise ratio, dB
-    metadata.patienet_id = '';
+    metadata.patient_id = '';                                                           
     metadata.notes = '';
 
     metadata.RawSuprasystolicPressure=measDataLogger.SSBuff.Text;                       % raw base 64 data
@@ -48,7 +48,7 @@ function [metadata, ba, ao, ss] = read_BPplusCardioScope(data, Npoly, Frame)
     ao.dbp=str2double(result.aoDia.Text);                                               % cDBP calculated by BP+, mmHg
     %ao.map=str2double(result.aoMap.Text);                                               % TODO: calculate from average beat? cMAP calculated by BP+, mmHg
     ao.pp=ao.sbp-ao.dbp;                                                                % cPP calculated by BP+, mmHg
-    ao.ed = -1;                                                                         % TODO Calcualte ED as duration of systole. NOTE: BP+ cED is a %
+    ao.ed = -1;                                                                          % TODO Calcualte ED as duration of systole. NOTE: BP+ cED is a %
 
     %% aortic rhythm, average beat & start of pulses.
     ao.p_all=str2double(split(result.aoEstimate.Text,','));
