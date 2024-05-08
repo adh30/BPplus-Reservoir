@@ -5,7 +5,7 @@ function [metadata, ba, ao, ss] = read_BPplusBPplus(data)
     % meta data
     metadata.bppvers=measDataLogger.Attributes.version;                                 % Software version
     if isfield(measDataLogger.Attributes,'nibp')
-        metadata.nibp=measDataLogger.Attributes.nibp;                                       % nibp type
+        metadata.nibp=measDataLogger.Attributes.nibp;                                   % nibp type
     end
     metadata.datestring=measDataLogger.Attributes.datetime;                             % Date as text string
     metadata.guid = measDataLogger.Attributes.guid;                                     % Unique ID for this measurement
@@ -57,9 +57,8 @@ function [metadata, ba, ao, ss] = read_BPplusBPplus(data)
     ao.pp=ao.sbp-ao.dbp;                                                                % cPP calculated by BP+, mmHg
     if isfield(result,'cST')
         ao.ed=str2double(result.cST.Text)/1000;                                         % cED calculated by BP+. duration of systole. NOTE: BP+ cED is a %
-    end
-    if isfield(result,'sSEP')
-        ao.ed=str2double(result.sSEP.Text)/1000;
+    else
+        ao.ed=[];
     end
     
     %% aortic rhythm, average beat & start of pulses.
