@@ -51,9 +51,15 @@ Npoly=3;                % Order of polynomial fit for sgolay
 unprocessed_no = 0;     % Number of unprocessed files
 Frame=9;                % Window length for sgolay based on (Rivolo et al.
 % IEEE Engineering in Medicine and Biology Society Annual Conference 2014; 2014: 5056-9.
+%% Select files and folder
+% folder from json
+jtext = fileread('config.json');
+jdata = jsondecode(jtext);
+%file_lists=dir(fullfile(string(data.folder_name), '*.*'));
+folder_name = jdata.folder_name;
+disp(['Source folder = ' folder_name]);
 
-%% Select files
-folder_name ='D:\BPPdata\'; % standard directory changed to reflect new xml files
+%folder_name ='D:\BPPdata\'; % standard directory changed to reflect new xml files
 % check that folder name exists and if not allows new folder to be chosen
 if ~exist(folder_name, 'dir')
     answer = questdlg(folder_name + 'doesnt exist. Would you like to choose another folder?', ...

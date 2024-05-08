@@ -16,5 +16,5 @@ if not(isfolder(datadir))
    writestruct(S,"config.json",PreserveInfAndNaN=false);
    % type config.json
 else
-    disp("Data folder exists")
+    disp(['Data folder is ' datadir])
 end
