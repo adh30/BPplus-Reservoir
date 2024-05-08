@@ -73,7 +73,7 @@ function [metadata, ba, ao, ss] = read_BPplusCardioScope(data, Npoly, Frame)
     a0=str2double(split(result.aoAverageBeat.Text,','));
     % create a double beat' to deal with the errors in definition of dbp
     a=[a0; a0];
-    plot(a);
+    %plot(a);
     % identify start and end of beat as minima
     [~, locmin1]=min(a);
     [~, locmin2]=min(a(locmin1+50:end));

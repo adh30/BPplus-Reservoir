@@ -28,12 +28,12 @@
 % folder throughout the program and acknowledging use of 'fill_between.m'
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Things to do
-    % fix trailing zeros (NaN in plots)
-    % suppress plots during processing
-    % scattered things in code from Richard
-    % expand outputs
-    % estimate SV / CO 
-    % estimate EF1 substitute
+% fix trailing zeros (NaN in plots)
+% suppress plots during processing
+% scattered things in code from Richard
+% expand outputs
+% estimate SV / CO
+% estimate EF1 substitute
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% m files required to be in directory (in addition to bpp_Res2.m)
 % ai_v2.m
@@ -103,7 +103,9 @@ for file_number=1:no_of_files
 
     %% don't process poor or unacceptable files.
     if metadata.snr >=6
-
+        %% process acceptable files
+        % fix erroneous zeros in pulsewaveforms
+        ss.pulsewaveforms(ss.pulsewaveforms == 0) = NaN;
         % calculate aoAIx, Pi, Tfoot, Ti (T1), Tpeak(T2)
         [ao_ai, ao_Pi, ao_Tfoot, ao_Ti, ao_Tmax, ao_Typetxt] = ai_v2(ao.p_av, samplerate);
         ao_Tr = ao_Ti-ao_Tfoot;
@@ -242,7 +244,8 @@ for file_number=1:no_of_files
         % make a time variable for printing
         Time_cycles=(1:length(ss.pulsewaveforms))/samplerate;
         % Aortic pressure and reservoir
-        figure('Name',metadata.fileID,'visible','on');
+        %figure('Name',metadata.fileID,'visible','on');
+        figure('Name',metadata.fileID,'visible','off');
         subplot(2,2,1);
         plot(Time_cycles,ss.pulsewaveforms);
         xlabel('Time (s)')
@@ -489,7 +492,7 @@ end
 
 % % message at end
 msg=string(no_of_files);
-msg=strcat(msg, " files processed");
+msg=strcat(msg, " file(s) processed");
 % msgbox(msg, 'Done');
-disp(msg) 
+disp(msg)
 
