@@ -1,9 +1,13 @@
 %% batch analysis of BP+ data to perform pulse wave analysis, reservoir analysis and wave intensity analysis
 %% Copyright 2019 Alun Hughes based on some original code by Kim Parker
 % Also uses xml2struct.m by W. Falkena, ASTI, TUDelft, 21-08-2010 with additional
-% modifications by A. Wanner, I Smirnov & Chao-Yuan Yeh and fill_between.m
+% modifications by A. Wanner, I Smirnov & Chao-Yuan Yeh 
+% and 
+% fill_between.m
 % originally written by Ben Vincent, July 2014. Inspired by a function of
 % the same name available in the Matplotlib Python library.
+% and
+% MMINTERP by D.C. Hanselman, Jan 1994
 
 %%
 % This software is distributed under under the terms of the GNU General Public License
@@ -28,8 +32,6 @@
 % folder throughout the program and acknowledging use of 'fill_between.m'
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Things to do
-% fix trailing zeros (NaN in plots)
-% suppress plots during processing
 % scattered things in code from Richard
 % expand outputs
 % estimate SV / CO
@@ -47,13 +49,14 @@ kres_v='v15';           % Version tracking for reservoir fitting
 headernumber=53;        % Headers for columns of results (see end)
 mmHgPa = 133;           % P conversion for WIA
 uconst=1;               % Empirical constant to convert normalized velocity to m/s
-Npoly=3;                % Order of polynomial fit for sgolay
 unprocessed_no = 0;     % Number of unprocessed files
+Npoly=3;                % Order of polynomial fit for sgolay
 Frame=9;                % Window length for sgolay based on (Rivolo et al.
-% IEEE Engineering in Medicine and Biology Society Annual Conference 2014; 2014: 5056-9.
+                        % IEEE Engineering in Medicine and Biology Society 
+                        % Annual Conference 2014; 2014: 5056-9).
 %% Select files and folder
 % folder from json
-jtext = fileread('config.json');
+jtext = fileread('bppconfig.json');
 jdata = jsondecode(jtext);
 %file_lists=dir(fullfile(string(data.folder_name), '*.*'));
 folder_name = jdata.folder_name;
@@ -278,7 +281,7 @@ for file_number=1:no_of_files
         xlabel('Samples')
         ylabel('BP (mmHg)')
         base=min(ao.p_av);
-        dicroticNotchIdx=fix(ss.sep*samplerate);         % This uses the BP+ determined time of dicrotic notch.
+        dicroticNotchIdx=fix(ss.sep*samplerate);         % This uses the BP+ determined time of dicrotic notch (rounded down)
         if (lsys <= dicroticNotchIdx)
             fill_between(1:length(ao.p_av),ao.p_av, base, x <= lsys, 'FaceColor', [0.8 0.8 1]);
             fill_between(1:length(ao.p_av),ao.p_av, base, x >= lsys & x <= dicroticNotchIdx , 'FaceColor', [1 0.8 1]);
@@ -402,7 +405,7 @@ for file_number=1:no_of_files
         proc_var{record_no,49}=wri;                                             % WRI
         proc_var{record_no,50}=rhoc;                                            % rhoc
         proc_var{record_no,51}=ao_sevr;                                         % aortic SEVR
-        proc_var{record_no,52}='bpp_Res2 (beta2)';                              % version of bpp_Res
+        proc_var{record_no,52}=bRes_version;                                    % version of bpp_Res
         proc_var{record_no,53}=metadata.quality;                                % quality index
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     else

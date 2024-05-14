@@ -14,7 +14,6 @@ function [metadata, ba, ao, ss] = read_BPplusBPplus(data)
     metadata.snr=str2double(result.SNR.Text);                                           % Signal to noise ratio, dB
     metadata.patienet_id = '';
     metadata.notes = '';
-
     metadata.RawSuprasystolicPressure=measDataLogger.RawSuprasystolicPressure.Text;     % raw base 64 data
 
     % Mode is only available in later versions of xml

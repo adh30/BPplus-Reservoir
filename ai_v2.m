@@ -16,7 +16,6 @@ function [ai, Pi, Tfoot, Ti, Tmax, typetxt] = ai_v2(p,samplerate)
 % M. Karamanoglu. Diagnostic Applanation Tonometry 1996.
 %%
 samples=1:length(p);
-% map = trapz(x)/length(x);
 dpdt=fsg71(p);
 d2p=fsg71(dpdt);
 d3p=fsg71(d2p);

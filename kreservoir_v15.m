@@ -1,5 +1,5 @@
 %% kreservoir15  -  calculate reservoir pressure from pressure waveform
-%  Copyright 2008 Kim H Parker with some additions from Alun Hughes [ADH] 
+%  Copyright 2008 Kim H Parker with some additions from Alun Hughes [ADH]
 %  This software is distributed under under the terms of the GNU General Public License
 %  This program is free software: you can redistribute it and/or modify
 %  it under the terms of the GNU General Public License as published by
@@ -28,9 +28,8 @@
 %  v.11 (31/01/14) various minor corrections to run with cafe_data_v5 [ADH]
 %  v.12 (08/07/15) various minor corrections to run with batch data (batch_res_v7 [ADH])
 %  v.13 (17/03/19) to run with with batch data (batch_res_v12 [ADH])
-%  v.14 (11/01/20) added error trap to calculate b using linear fit to
-%  log(P) in diastole if method of moments fails [ADH]
-%
+%  v.14 (11/01/20) added error trap to calculate b using linear fit to log(P) in diastole if method of moments fails [ADH]
+%  v.15 (18/12/23) minor tidying 
 %%
 function [Pr,A,B,Pinf,Tn,Pn]=kreservoir_v15(P,Tb, sampling_rate)
 %   inputs  P    - pressure starting at diastolic pressure
@@ -54,15 +53,15 @@ dt=Tb/(Nb-1);
 t=(0:dt:Tb);
 
 % find the minimum dp to determine Tn
-    dp=fsg721(p);
-    [~,nn]=min(dp);
-    tn=t(nn);
- 
+dp=fsg721(p);
+[~,nn]=min(dp);
+tn=t(nn);
+
 % calculate moments of pressure during diastole using model d=a*exp(-bt)+c
 pd=p(nn:end);       % pressure during diastole
 td=t(nn:end)-tn;    % number of samples in diastole
 Td=Tb-tn;           % duration of diastole
-dt=td(2)-td(1); 
+dt=td(2)-td(1);
 N=length(pd)-1;     % length of diastole-1
 
 % calculation of E2/E1 using Simpson's rule
@@ -95,8 +94,8 @@ else
     y=log(P(nn:end));               % use log slope
     X=(1:length(y))/sampling_rate;
     BTd=exp(X/y);
-end   
-   
+end
+
 % given b calculate a from E1
 e1=exp(1);
 if (BTd==1)
@@ -149,9 +148,9 @@ Nd=length(pd);
 np=[2:Nd Nd];
 prend=pr(nn:end);
 %k=find((prend-prd).*(prend(np)-prd(np))<=0,1);
-% changed to avoid Warning: Colon operands must be real scalars. This warning will become an error in a future release. 
+% changed to avoid Warning: Colon operands must be real scalars. This warning will become an error in a future release.
 k=find((prend-prd).*(prend(np)-prd(np))<=0,1, "first");
-prr=pr;              
+prr=pr;
 prr(nn+k:end)=prd(k+1:end);
 
 % return variables
@@ -163,9 +162,8 @@ Tn=t(nn);
 Pn=p(nn);
 end
 
-%% ratio21.m - calculate the ratio of exponential moments R(bTd)
-% KHP (27/01/10)
-% added y==0 condition (06/02/10)
+%% ratio21.m 
+% calculate the ratio of exponential moments R(bTd)
 
 function Rdiff=ratio21(y)
 %   input   y - value of bTd
@@ -182,9 +180,9 @@ elseif (y==0)
 else
     R=((exp(2-y)-1)/(2-y)-(1-exp(-y))*(exp(2)-1)/(2*y))/((exp(1-y)-1)/(1-y)-(1-exp(-y))*(exp(1)-1)/y);
 end
-Rdiff=R-Rexp_inline; 
+Rdiff=R-Rexp_inline;
 end
- 
+
 % %% kexpint.m  -  calculate the exponential integral Z = I_0^t Y*exp(at)dt
 % function Z=kexpint(Y,T,A)
 % %   inputs  Y(t) - row vector
@@ -232,7 +230,6 @@ Prd=prb(nn:end);
 end
 
 %% beat_int
-%  khp (30/07/08)
 % calculate the indefinite integral during whole beat
 % inputs    Ps   - row vector of pressure for whole beat
 %           Ts   - row vector of times for whole beat
@@ -250,6 +247,7 @@ Pr=prb;
 end
 
 %% dias_fit
+% fit to diastole
 function afind = dias_fit(y)
 
 global p_inline
@@ -264,25 +262,22 @@ aa=y;
 afind = sum((prd_inline - dias_int(p_inline,t_inline,aa,b_inline,pinf_inline,nn_inline)).^2);
 end
 
-
-
 %% Savitsky-Golay first derivative filter function
 % dx=fsg721(x)
 % 	7 point SavGol filter, 2nd order polynomial, 1st derivative
 %	input 	x
 %	output	dx
 %	corrected for time shift
-
 function dx=fsg721(x)
-
 % 2nd order polynomial
 C=[0.107143,0.071429,0.035714];
-
 B=zeros(1,7);
-for i=1:3 
-    B(i)=C(i); 
-end	
+
+for i=1:3
+    B(i)=C(i);
+end
 B(4)=0.0;
+
 for i=5:7
     B(i)=-C(8-i);
 end
@@ -291,5 +286,4 @@ A=[1,0];
 s=size(x,2);
 dx=filter(B,A,x);
 dx=[dx(7),dx(7),dx(7),dx(7:s),dx(s),dx(s),dx(s)];
-
 end
