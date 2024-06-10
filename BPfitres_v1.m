@@ -1,4 +1,4 @@
-%% BPfitres_v1 - batch analysis of BPplus data using kreservoir_v14 by KHP
+%% BPfitres_v1 - batch analysis of BPplus data using kreservoir_v15
 %  Copyright 2019 Alun Hughes
 %  This software is distributed under under the terms of the GNU General Public License
 %  This program is free software: you can redistribute it and/or modify
@@ -14,7 +14,7 @@
 
 %% Versions
 % v1 First stable version(03/01/20) based on fitres_v5 and uses kreservoir_v14
-% modified to use kreservoir15 13/04/24 ADH (trivial change so not renamed)
+% modified to use kreservoir15 13/04/24 ADH (trivial change so not renamed from v1)
 
 %%
 function [Tn_av, Pinf_av, P_av,Pr_av,Pn_av,...

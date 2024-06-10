@@ -1,5 +1,5 @@
 %% kreservoir15  -  calculate reservoir pressure from pressure waveform
-%  Copyright 2008 Kim H Parker with some additions from Alun Hughes [ADH]
+%  Copyright 2008-23 Kim H Parker with some additions from Alun Hughes [ADH]
 %  This software is distributed under under the terms of the GNU General Public License
 %  This program is free software: you can redistribute it and/or modify
 %  it under the terms of the GNU General Public License as published by

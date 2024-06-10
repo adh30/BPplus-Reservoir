@@ -1,8 +1,8 @@
 %% batch analysis of BP+ data to perform pulse wave analysis, reservoir analysis and wave intensity analysis
 %% Copyright 2019 Alun Hughes based on some original code by Kim Parker
 % Also uses xml2struct.m by W. Falkena, ASTI, TUDelft, 21-08-2010 with additional
-% modifications by A. Wanner, I Smirnov & Chao-Yuan Yeh 
-% and 
+% modifications by A. Wanner, I Smirnov & Chao-Yuan Yeh
+% and
 % fill_between.m
 % originally written by Ben Vincent, July 2014. Inspired by a function of
 % the same name available in the Matplotlib Python library.
@@ -24,18 +24,22 @@
 
 %% Versions
 % bpp_res2 (beta5) - *** IN PROGRESS ***
-% bpp_res2 (beta4) - modifications to ai_v1 based on suggestions from Richard Scott
-% now renamed ai_v2.
+% bpp_res2 (beta4) - modifications to ai_v1 based on suggestions from
+% Richard Scott now renamed ai_v2.
 % bpp_res2 (beta3) - beta version adapted to read old and new BPplus. Also
 % incorporates additional information and suggestions from Richard Scott.
 % Minor bug fixes to alternative folder setting, propagating default
 % folder throughout the program and acknowledging use of 'fill_between.m'
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Things to do
-% scattered things in code from Richard
+% CHECK T1 and T2 definitions in Sphygmocor!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 % expand outputs
 % estimate SV / CO
 % estimate EF1 substitute
+% include enumeration of files rejected for poor quality
+% read_BPpluscardioscope.m Line 28 - ss.p_all
+% read_BPpluscardioscope.m Line 35 naming confusion over NIBP etc...
+% read_BPpluscardioscope.m Line 49 ao.ed
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% m files required to be in directory (in addition to bpp_Res2.m)
 % ai_v2.m
@@ -46,14 +50,14 @@
 %% Constants
 bRes_version='beta5';   % Version of bRes_bpp
 kres_v='v15';           % Version tracking for reservoir fitting
-headernumber=53;        % Headers for columns of results (see end)
-mmHgPa = 133;           % P conversion for WIA
+headernumber=54;        % Headers for columns of results (see end)
+mmHgPa = 133.322;           % P conversion for WIA
 uconst=1;               % Empirical constant to convert normalized velocity to m/s
 unprocessed_no = 0;     % Number of unprocessed files
 Npoly=3;                % Order of polynomial fit for sgolay
 Frame=9;                % Window length for sgolay based on (Rivolo et al.
-                        % IEEE Engineering in Medicine and Biology Society 
-                        % Annual Conference 2014; 2014: 5056-9).
+% IEEE Engineering in Medicine and Biology Society
+% Annual Conference 2014; 2014: 5056-9).
 %% Select files and folder
 % folder from json
 jtext = fileread('bppconfig.json');
@@ -65,7 +69,7 @@ disp(['Source folder = ' folder_name]);
 %folder_name ='D:\BPPdata\'; % standard directory changed to reflect new xml files
 % check that folder name exists and if not allows new folder to be chosen
 if ~exist(folder_name, 'dir')
-    answer = questdlg(folder_name + 'doesnt exist. Would you like to choose another folder?', ...
+    answer = questdlg([folder_name ' doesnt exist. Would you like to choose another folder?'], ...
         'BPplus Data Folder','Yes', 'No [end]','Yes');
     % Handle response
     switch answer
@@ -98,8 +102,7 @@ for file_number=1:no_of_files
     filename=file_lists(record_no).name;
 
     % progress bar
-    % open waitbar
-    msg = strcat('Processing file: ',filename);
+    msg = strcat(['Processing file ',num2str(record_no), ' of ', num2str(no_of_files)]);
     if record_no==1
         h = waitbar(record_no/no_of_files, msg);
     else
@@ -113,14 +116,37 @@ for file_number=1:no_of_files
     %% don't process poor or unacceptable files.
     if metadata.snr >=6
         %% process acceptable files
+        % quality of BP tracing
+        if metadata.snr < 9
+                quality = 'acceptable';
+        elseif metadata.snr >=9 && metadata.snr<12
+                quality = 'good';
+        else
+                quality = 'excellent';
+        end
+
         % fix erroneous zeros in pulsewaveforms
         ss.pulsewaveforms(ss.pulsewaveforms == 0) = NaN;
-        % calculate aoAIx, Pi, Tfoot, Ti (T1), Tpeak(T2)
+        % calculate aoAIx, Pi, Tfoot, Ti, T1, Tmax, T2
+        % T1 and T2 calculated according to Qasem & Avolio 2008 which may
+        % differ from estimate of Ti by Kelly
+
+        % Aortic waveform features including AIx
         [ao_ai, ao_Pi, ao_Tfoot, ao_Ti, ao_Tmax, ao_Typetxt] = ai_v2(ao.p_av, samplerate);
         ao_Tr = ao_Ti-ao_Tfoot;
         ao_Piba_dbp = ao_Pi-ba.dbp;
+        if ao_Typetxt=="Type A"
+            ao_t1= ao_Ti;
+            ao_t2 = ao_Tmax;
+        else
+            ao_t1=ao_Tmax;
+            ao_t2=ao_Ti;
+        end
+        ao_p1=ao.p_av(round(ao_t1*samplerate));
+        ao_p2=ao.p_av(round(ao_t2*samplerate));
+        ao_ap=ao_p2-ao_p1;
 
-        %% calculate aortic dp/dt
+        %% calculate aortic dp/dt [mmHg/s]
         ao_dpdt=max(diff(ao.p_av))*samplerate;
 
         %% do reservoir calculations for aortic pressure
@@ -128,19 +154,21 @@ for file_number=1:no_of_files
         aoPxs=aoP_av-aoPr_av;
 
         %% do reservoir calculations for brachial pressure
-        % assign p to pass to function
-        ba_p_av = ba.p_av;                                                      % TODO: is this what we want or actual ba.p_av?
-        [baTn_av, baPinf_av, baP_av,baPr_av,baPn_av, bafita_av,...
-            bafitb_av, barsq_av]=BPfitres_v1(ba_p_av',metadata.samplerate);
-
-        % calculate Pxs = P - Pres
+        [baTn_av, baPinf_av,baP_av, baPr_av,baPn_av, bafita_av, bafitb_av, barsq_av]=BPfitres_v1(ba.p_av',metadata.samplerate);
+        % calculate Pxs = P - Pres where P is the processed brachial
+        % pressure which has the same length as the reservoir pressure
         baPxs=baP_av-baPr_av;
 
-        % pAI
-        [~, Tdiffpeaks]=findpeaks(diff(ba_p_av), 'Npeaks', 3);    % peaks of dP
-        ba_p2=ba_p_av(Tdiffpeaks(2));
-        ba_ai=100*(ba_p2-ba.dbp)/(ba.sbp-ba.dbp); % peripheral augmentation index (%) uses definition in Munir S et al. Hypertension 2008; 51(1): 112-8.
-        ba_dpdt=max(diff(ba_p_av))*samplerate;
+        % pAI and fiducial points on brachial waveform
+        [~, Tdiffpeaks]=findpeaks(diff(baP_av), 'Npeaks', 3);               % peaks of dP
+        ba_p1=baP_av(Tdiffpeaks(1));
+        ba_t1=Tdiffpeaks(1)/samplerate;
+        ba_p2=baP_av(Tdiffpeaks(2));
+        ba_t2=Tdiffpeaks(2)/samplerate;
+        ba_ai=100*(ba_p2-ba.dbp)/(ba.sbp-ba.dbp);                           % peripheral augmentation index (%) uses definition in Munir S et al. Hypertension 2008; 51(1): 112-8.
+        ba_dpdt=max(diff(baP_av))*samplerate;                               % mmHg/s
+        [~,ba_tmax]=max(baP_av);
+        ba_tmax=ba_tmax/samplerate;                                         %s
 
         %% calculate SEVR (aortic)
         % aoTn and baTn are not necessarily the same - which is better is uncertain
@@ -153,14 +181,18 @@ for file_number=1:no_of_files
         ao_dpti=trapz(ao.p_av(lsys+1:end));
         ao_sevr=ao_dpti/ao_spti;                    % SEVR (aortic)
         kliuinverse=ao_dpti/(ao_dpti+ao_spti);      % inverse of Liu constant, k
-        pmean_sys=ao_spti/lsys;                     % mean pressure of systole
-        pmean_dia=ao_dpti/(length(ao.p_av)-lsys);   % mean pressure of diastole
+        ao_pmean_sys=ao_spti/lsys;                     % mean pressure of systole
+        ao_pmean_dia=ao_dpti/(length(ao.p_av)-lsys);   % mean pressure of diastole
 
         %% Create estimates of Pf and Pb using the assumption that Pb = cPr/2
         aoPb_av=(aoPr_av-min(aoP_av))/2;
         aoPf_av=aoP_av-aoPb_av-min(aoP_av);
-        Pb_Pf=max(aoPb_av)/max(aoPf_av);
-        RI=max(aoPb_av)/(max(aoPf_av)+ max(aoPb_av));
+        [aoPbmax,aot_Pbmax] = max(aoPb_av);         % maximum backward pressure, mmHg & samples
+        aot_Pbmax=aot_Pbmax/samplerate;             % time maxumum backward pressure, s
+        [aoPfmax, aot_Pfmax] = max(aoPf_av);        % maximum forward pressure, mmHg & samples
+        aot_Pfmax=aot_Pfmax/samplerate;             % time maxumum forward pressure, s
+        aoPb_Pf=aoPbmax/aoPfmax;                    % Pb/Pf
+        ao_ri=aoPbmax/(aoPfmax + aoPbmax);          % Reflection index
 
         %% wave intensity analysis (only done on central P)
         % convert Pxs to flow velocity and assume peak velocity, U = 1m/s.
@@ -340,73 +372,112 @@ for file_number=1:no_of_files
         clear figs;
 
         %% Calculate and save additional results
-        [~,max_tpb]= max(ba_p_av);          % maximum forward pressure
-        [~,max_tpa]= max(aoP_av);           % maximum backward pressure
-        [maxPra,max_tra]= max(aoPr_av);     % maximum aortic reservoir pressure and time
-        [maxPxsa,max_txsa]= max(aoPxs);     % maximum aortic excess pressure and time
-        [maxPrb,max_trb]= max(baPr_av);     % maximum brachial reservoir pressure and time
-        [maxPxsb,max_txsb]= max(baPxs);     % maximum brachial excess pressure and time
-
-        % wasted LV pressure energy (Ew) = 2.09Δtr (Ps − Pi). Nichols WW.
-        % Clinical measurement of arterial stiffness obtained from
-        % noninvasive pressure waveforms. Am J Hypertens 2005; 18(1 Pt 2): 3S-10S.
-
-
+        pp_ar=ba.pp/ao.pp;                                                      % pulse pressure amplification ratio
+        [maxPra,max_tra] = max(aoPr_av);                                        % maximum aortic reservoir pressure and time, mmHg & samples
+        max_tra=max_tra/samplerate;                                             % s
+        [maxPxsa,max_txsa] = max(aoPxs);                                        % maximum aortic excess pressure and time, mmHg & samples
+        max_txsa=max_txsa/samplerate;                                           % s
+        [maxPrb,max_trb] = max(baPr_av);                                        % maximum brachial reservoir pressure and time, mmHg & samples
+        max_trb=max_trb/samplerate;                                             % s
+        [maxPxsb,max_txsb] = max(baPxs);                                        % maximum brachial excess pressure and time, mmHg & s
+        max_txsb=max_txsb/samplerate;                                           % s
+        ao_ai75=ao_ai+.481*ba.hr-36.1;                                          % AIx heart rate adjusted to heart rate 75
+        ao_dd=60/ba.hr-aoPn_av/1000;                                            % central diastolic duration, s
+        e_w = pi/2*(aoTn_av-ao_Tr)*(ao.sbp-ao_Pi)*mmHgPa;                       % wasted LV pressure energy (Ew) = pi/2*Δtr (Ps − Pi)* conversion from mmHg to Pa. 
+                                                                                % Nichols WW. Clinical measurement of arterial stiffness obtained 
+                                                                                % from noninvasive pressure waveforms. Am J Hypertens 2005; 
+                                                                                % 18(1 Pt 2): 3S-10S.
 
         %% write variables
         proc_var{record_no,1}=filename;                                         % filename
-        proc_var{record_no,2}=ba.sbp;                                           % brachial SBP, mmHg
-        proc_var{record_no,3}=max_tpb/samplerate;                               % time max brachial P (baSBP), s
-        proc_var{record_no,4}=ba.dbp;                                           % min P, ba.dbp, mmHg
-        proc_var{record_no,5}=sum(aoPr_av)/samplerate;                          % integral aoPres, mmHg.s
-        proc_var{record_no,6}=maxPra;                                           % max aoPres (aSBP), mmHg
-        proc_var{record_no,7}=max_tra/samplerate;                               % Time max aoPres, sec
-        proc_var{record_no,8}=sum(aoPr_av-ba.dbp)/samplerate;                   % integral aoPres-diastolic, mmHg.s
-        proc_var{record_no,9}=metadata.datestring;                              % Date as text string
-        proc_var{record_no,10}=samplerate;                                      % sampling rate, 1/sec [used to be time of max Pres-diastolic but since this == Time max Pres I replaced it with the sampling rate]
-        proc_var{record_no,11}=sum(aoPxs)/samplerate;                           % Integral excess pressure, mmHg.s
-        proc_var{record_no,12}=maxPxsa;                                         % max excess P, mmHg
-        proc_var{record_no,13}=max_txsa/samplerate;                             % time of max excess P, sec
-        proc_var{record_no,14}=aoTn_av;                                         % Time of end systole by max -dp/dt, sec
-        proc_var{record_no,15}=aoPinf_av;                                       % aortic P infinity, mmHg
-        proc_var{record_no,16}=aoPn_av;                                         % aortic P at end systole by max -dp/dt, mmHg
-        proc_var{record_no,17}=aofita_av;                                       % aortic rate constant A (ka), 1/sec
-        proc_var{record_no,18}=aofitb_av;                                       % aortic rate constant B (kb), 1/sec
-        proc_var{record_no,19}=aorsq_av;                                        % aortic R2 for diastolic fit
-        proc_var{record_no,20}=prob;                                            % likely problem with fit
-        proc_var{record_no,21}=kres_v;                                          % version kreservoir
-        proc_var{record_no,22}=ao_Typetxt;                                      % AI type
-        proc_var{record_no,23}=ba.hr;                                           % Heart rate, bpm
-        proc_var{record_no,24}=ba_p2;                                           % SBP2, mmHg
-        proc_var{record_no,25}=sum(baPr_av)/samplerate;                         % integral baPres, mmHg.s
-        proc_var{record_no,26}=maxPrb;                                          % max baPres, mmHg
-        proc_var{record_no,27}=max_trb/samplerate;                              % Time max Pres, sec
-        proc_var{record_no,28}=sum(baPxs)/samplerate;                           % Integral ba excess pressure, mmHg.s
-        proc_var{record_no,29}=maxPxsb;                                         % max ba excess P, mmHg
-        proc_var{record_no,30}=max_txsb/samplerate;                             % time of max ba excess P, sec
-        proc_var{record_no,31}=bafita_av;                                       % brachial rate constant A (ka), 1/sec
-        proc_var{record_no,32}=bafitb_av;                                       % brachial rate constant B (kb), 1/sec
-        proc_var{record_no,33}=barsq_av;                                        % brachial R2 for diastolic fit
-        proc_var{record_no,34}=baPinf_av;                                       % brachial Pinf, mmHg
-        proc_var{record_no,35}=baPn_av;                                         % brachial P at end systole by max -dp/dt, mmHg
-        proc_var{record_no,36}=ao_dpdt;                                         % aortic dp/dt, mmHg/s
-        proc_var{record_no,37}=ba_dpdt;                                         % brachial dp/dt mmHg/s
-        proc_var{record_no,38}=Pb_Pf;                                           % Pb/Pf (ratio of backward to forward pressure - also know as reflection magnitude. RM
-        proc_var{record_no,39}=RI;                                              % Reflection index (RI) calculated as Pb/(Pb+Pf)
-        proc_var{record_no,40}=dippks(1);                                       % W1 intensity
-        proc_var{record_no,41}=dipt(1);                                         % W1 time
-        proc_var{record_no,42}=diparea(1);                                      % W1 area
-        proc_var{record_no,43}=dimpks;                                          % W-1 intensity
-        proc_var{record_no,44}=dimt;                                            % W-1 time
-        proc_var{record_no,45}=dimarea;                                         % W-1 area
-        proc_var{record_no,46}=dippks(2);                                       % W2 intensity
-        proc_var{record_no,47}=dipt(2);                                         % W2 time
-        proc_var{record_no,48}=diparea(2);                                      % W2 area
-        proc_var{record_no,49}=wri;                                             % WRI
-        proc_var{record_no,50}=rhoc;                                            % rhoc
-        proc_var{record_no,51}=ao_sevr;                                         % aortic SEVR
-        proc_var{record_no,52}=bRes_version;                                    % version of bpp_Res
-        proc_var{record_no,53}=metadata.quality;                                % quality index
+        proc_var{record_no,2}=metadata.datestring;                              % Date as text string
+        proc_var{record_no,3}=metadata.bppvers;                                 % BP+ software version
+        proc_var{record_no,4}=metadata.bppalgo;                                 % BP+ algorithm
+        proc_var{record_no,5}=bRes_version;                                     % bRes version
+        proc_var{record_no,6}=kres_v;                                           % kreservoir version
+        proc_var{record_no,7}=samplerate;                                       % sampling rate, 1/sec
+        proc_var{record_no,8}=ba.sbp;                                           % brachial SBP, mmHg
+        proc_var{record_no,9}=ba_tmax;                                          % time max brachial P (baSBP), s
+        proc_var{record_no,10}=ba.dbp;                                          % min P, ba.dbp, mmHg
+        proc_var{record_no,11}=ba.hr;                                           % Heart rate, bpm
+        proc_var{record_no,12}=ba.map;                                          % Mean arterial pressure, mmHg
+        proc_var{record_no,13}=ba.pp;                                           % Brachial pulse pressure, mmHg
+        proc_var{record_no,14}=ao.sbp;                                          % Aortic systolic pressure, mmHg
+        proc_var{record_no,15}=ao.dbp;                                          % Aortic diastolic pressure, mmHg
+        proc_var{record_no,16}=ao.pp;                                           % Aortic pulse pressure, mmHg
+        proc_var{record_no,17}=metadata.snr;                                    % Signal to Noise Ratio
+        proc_var{record_no,18}=ss.prv;                                          % Pulse rate variability from suprasystolic signal, ms
+        proc_var{record_no,19}=ss.ai;                                           % Augmentation index from suprasystolic signal, ms
+        proc_var{record_no,20}=ss.ppv;                                          % Pulse pressure variation from suprasystolic signal, mmHg
+        proc_var{record_no,21}=ss.RWTTFoot;                                     % Reflected wave transit time from foot of suprasystolic signal
+        proc_var{record_no,22}=ss.RWTTPeak;                                     % Reflected wave transit time from peak of suprasystolic signal
+        proc_var{record_no,23}=ss.sep;                                          % Systolic ejection period from suprasystolic signal (notch)
+        proc_var{record_no,24}=quality;                                         % quality of trace based on SNR
+        proc_var{record_no,25}=ba_t1;                                           % brachial T1, s
+        proc_var{record_no,26}=ba_p1;                                           % brachial P1, mmHg
+        proc_var{record_no,27}=ba_t2;                                           % brachial T2, s
+        proc_var{record_no,28}=ba_p2;                                           % brachial P2 (SBP2), mmHg
+        proc_var{record_no,29}=ba_ai;                                           % Peripheral augmentation index (P2/P1)
+        proc_var{record_no,30}=baPn_av;                                        % brachial end systolic pressure, mmHg
+        proc_var{record_no,31}=ba_dpdt;                                         % brachial dp/dt, mmHg/s
+        proc_var{record_no,32}=aoTn_av;                                         % aortic ejection duration, s
+        proc_var{record_no,33}=aoPn_av;                                         % aortic end-systolic pressure, mmHg/s
+        proc_var{record_no,34}=ao_p1;                                           % aortic pressure at T1, mmHg
+        proc_var{record_no,35}=ao_p2;                                           % aortic pressure at T2, mmHg
+        proc_var{record_no,36}=ao_Tr;                                           % aortic pulse reflection time, s
+        proc_var{record_no,37}=ao_Typetxt;                                      % AI type
+        proc_var{record_no,38}=pp_ar;                                           % Pulse pressure amplification ratio (brachial/central)
+        proc_var{record_no,39}=ao_ap;                                           % aortic augmented pressure, mmHg
+        proc_var{record_no,40}=ao_pmean_sys;                                    % aortic mean pressure of systole, mmHg
+        proc_var{record_no,41}=ao_pmean_dia;                                    % aortic mean pressure of diastole, mmHg
+        proc_var{record_no,42}=ao_spti;                                         % aortic tension time index (spti), mmHg.s
+        proc_var{record_no,43}=ao_dpti;                                         % aortic dpti, mmHg.s
+        proc_var{record_no,44}=ao_sevr;                                         % aortic Sub-Endocardial Viability Ratio (SEVR, Buckberg Index)
+        proc_var{record_no,45}=ao_dd;                                           % aortic diastolic duration, s
+        proc_var{record_no,46}=ao_ai;                                           % aortic augmentation index (Central Aug/PH), % 
+        proc_var{record_no,47}=ao_ai75;                                         % aortic heart rate corrected augmentation index, %
+        proc_var{record_no,48}=ao_Ti;                                           % aortic time of shoulder/inflection point, s
+        proc_var{record_no,49}=e_w;                                             % aortic wasted work, Pa.s
+        proc_var{record_no,50}=ao_dpdt;                                         % aortic dp/dt, mmHg/s
+        proc_var{record_no,51}=aoPbmax;                                         % aortic maximum backwards pressure, mmHg
+        proc_var{record_no,52}=aot_Pbmax;                                       % aortic time maximum backwards pressure, s
+        proc_var{record_no,53}=aoPfmax;                                         % aortic maximum forwards pressure, mmHg
+        proc_var{record_no,54}=aot_Pfmax;                                       % aortic time maximum forward pressure, s
+        proc_var{record_no,55}=aoPb_Pf;                                         % aortic Pb/Pf (ratio of backward to forward pressure - also known as reflection magnitude. RM)
+        proc_var{record_no,56}=ao_ri;                                           % aortic reflection index (Pb/(Pb+Pf))
+        proc_var{record_no,57}=sum(aoPr_av)/samplerate;                         % integral aoPres, mmHg.s
+        proc_var{record_no,58}=maxPra;                                          % max aortic Pres, mmHg
+        proc_var{record_no,59}=max_tra/samplerate;                              % Time max aortic Pres, s                  ****************RENAME
+        proc_var{record_no,60}=sum(aoPr_av-ba.dbp)/samplerate;                  % integral aortic Pres-diastolic, mmHg.s
+        proc_var{record_no,61}=sum(aoPxs)/samplerate;                           % Integral excess pressure, mmHg.s
+        proc_var{record_no,62}=maxPxsa;                                         % max excess P, mmHg
+        proc_var{record_no,63}=max_txsa/samplerate;                             % time of max excess P, sec
+        proc_var{record_no,64}=aoPinf_av;                                       % aortic P infinity, mmHg
+        proc_var{record_no,65}=aofita_av;                                       % aortic rate constant A (ka), 1/sec
+        proc_var{record_no,66}=aofitb_av;                                       % aortic rate constant B (kb), 1/sec
+        proc_var{record_no,67}=aorsq_av;                                        % aortic R2 for diastolic fit
+        proc_var{record_no,68}=prob;                                            % likely problem with fit
+        proc_var{record_no,69}=sum(baPr_av)/samplerate;                         % integral baPres, mmHg.s
+        proc_var{record_no,70}=maxPrb;                                          % max baPres, mmHg
+        proc_var{record_no,71}=max_trb/samplerate;                              % Time max Pres, sec
+        proc_var{record_no,72}=sum(baPxs)/samplerate;                           % Integral ba excess pressure, mmHg.s
+        proc_var{record_no,73}=maxPxsb;                                         % max ba excess P, mmHg
+        proc_var{record_no,74}=max_txsb/samplerate;                             % time of max ba excess P, sec
+        proc_var{record_no,75}=bafita_av;                                       % brachial rate constant A (ka), 1/sec
+        proc_var{record_no,76}=bafitb_av;                                       % brachial rate constant B (kb), 1/sec
+        proc_var{record_no,77}=barsq_av;                                        % brachial R2 for diastolic fit
+        proc_var{record_no,78}=baPinf_av;                                       % brachial Pinf, mmHg
+        proc_var{record_no,79}=dippks(1);                                       % W1 intensity
+        proc_var{record_no,80}=dipt(1);                                         % W1 time
+        proc_var{record_no,81}=diparea(1);                                      % W1 area
+        proc_var{record_no,82}=dimpks;                                          % W-1 intensity
+        proc_var{record_no,83}=dimt;                                            % W-1 time
+        proc_var{record_no,84}=dimarea;                                         % W-1 area
+        proc_var{record_no,85}=dippks(2);                                       % W2 intensity
+        proc_var{record_no,86}=dipt(2);                                         % W2 time
+        proc_var{record_no,87}=diparea(2);                                      % W2 area
+        proc_var{record_no,88}=wri;                                             % WRI
+        proc_var{record_no,89}=rhoc;                                            % rhoc
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     else
         % Error trap for low SNR and message
@@ -424,72 +495,36 @@ for file_number=1:no_of_files
     end
     %% Save the results as an excel spreadheet
     % % % %
-    % 1 're_file'
-    % 2 're_basbp'
-    % 3 're_tbasbp'
-    % 4 're_minp'
-    % 5 're_intaopr'
-    % 6 're_maxaopr'
-    % 7 're_tmaxaopr'
-    % 8 're_intaoprlessdbp'
-    % 9 'date'
-    % 10 're_sam_rate'
-    % 11 're_intaoxsp'
-    % 12 're_maxaoxsp'
-    % 13 're_tmaxaoxsp'
-    % 14 're_aotn'
-    % 15 're_aopinf'
-    % 16 're_aopn'
-    % 17 're_aofita'
-    % 18 're_aofitb'
-    % 19 're_aorsq'
-    % 20 're_prob'
-    % 21 're_version'
-    % 22 're_aitype'
-    % 23 're_hr'
-    % 24 're_sbp2'
-    % 25 're_intbapr'
-    % 26 're_maxbapr'
-    % 27 're_tmaxbapr'
-    % 28 're_intbaxsp'
-    % 29 're_maxbaxsp'
-    % 30 're_tmaxbap'
-    % 31 're_bafita'
-    % 32 're_bafitb'
-    % 33 're_barsq'
-    % 34 're_bapinf'
-    % 35 're_bapn'
-    % 36 're_ao_dpdt'
-    % 37 're_ba_dpdt'
-    % 38 're_pb_pf'
-    % 39 're_ri'
-    % 40 're_wf1i'
-    % 41 're_wf1t'
-    % 42 're_wf1a'
-    % 43 're_wbi'
-    % 44 're_wbt'
-    % 45 're_wba'
-    % 46 're_wf2i'
-    % 47 're_wf2t'
-    % 48 're_wf2a'
-    % 49 're_wri'
-    % 50 're_rhoc'
-    % 51 'ao_sevr'
-    % 52 'empty'
-    % 53 'quality'
-    % % % %
     xlsfile=strcat(folder_name, 'results\resdata.xls');
-    header = {'re_file' 're_basbp' 're_tbasbp' 're_minp' 're_intaopr' 're_maxaopr'...
-        're_tmaxaopr' 're_intaoprlessdbp' 'date' 're_sam_rate'...
-        're_intaoxsp' 're_maxaoxsp' 're_tmaxaoxsp' 're_aotn' 're_aopinf' 're_aopn'...
-        're_aofita' 're_aofitb' 're_aorsq' 're_prob' 're_kres'...
-        're_aitype' 're_hr' 're_sbp2' 're_intbapr' 're_maxbapr' 're_tmaxbapr'...
-        're_intbaxsp' 're_maxbaxsp' 're_tmaxbap' 're_bafita' 're_bafitb'...
-        're_barsq' 're_bapinf' 're_bapn' 're_ao_dpdt' 're_ba_dpdt'...
-        're_pb_pf' 're_ri' 're_wf1i'  're_wf1t' 're_wf1a' 're_wbi' ...
-        're_wbt' 're_wba' 're_wf2i'  're_wf2t' 're_wf2a'  're_wri' 're_rhoc' ...
-        're_aosevr' 're_version' 're_quality'}; % header
-
+    % header = {'re_file' 're_basbp' 're_tbasbp' 're_minp' 're_intaopr' 're_maxaopr'...
+    %     're_tmaxaopr' 're_intaoprlessdbp' 'date' 're_sam_rate'...
+    %     're_intaoxsp' 're_maxaoxsp' 're_tmaxaoxsp' 're_aotn' 're_aopinf' 're_aopn'...
+    %     're_aofita' 're_aofitb' 're_aorsq' 're_prob' 're_kres'...
+    %     're_aitype' 're_hr' 're_sbp2' 're_intbapr' 're_maxbapr' 're_tmaxbapr'...
+    %     're_intbaxsp' 're_maxbaxsp' 're_tmaxbap' 're_bafita' 're_bafitb'...
+    %     're_barsq' 're_bapinf' 're_bapn' 're_ao_dpdt' 're_ba_dpdt'...
+    %     're_pb_pf' 're_ri' 're_wf1i'  're_wf1t' 're_wf1a' 're_wbi' ...
+    %     're_wbt' 're_wba' 're_wf2i'  're_wf2t' 're_wf2a'  're_wri' 're_rhoc' ...
+    %     're_aosevr' 're_version' 're_quality' 'ao_ai'}; % header
+    header = {'re_file' 're_date' 're_bppvers' 're_bppalgo' ...
+        're_resvers' 're_kres' 're_sam_rate' 're_basbp' 're_tbasbp',...
+        're_ba_dbp' 're_hr' 're_ba_map' 're_bapp' 're_aosbp' ...
+        're_aodbp' 're_aopp' 're_snr' 're_rmssd' 're_sAI' 're_ppv'...
+        're_rwttf' 're_rwttp' 're_sep' 're_quality' 're_ba_t1' 're_ba_p1'...
+        're_ba_t2' 're_ba_p2' 're_pai' 're_ba_esp' 're_ba_dpdt' 're_ao_ed'...
+        're_ao_esp' 're_ao_p1' 're_ao_p2' 're_aotr' 're_aitype' 're_ppar' ...
+        're_ao_ap' 're_pmsys' 're_pmdia' 're_ao_tti' 're_ao_dti' 're_aosevr'...
+        're_aodd' 're_ao_ai' 're_ai75' 're_aoti' 're_ao_ew' 're_ao_dpdt' ...
+        're_pb' 're_pb_t' 're_pf' 're_pf_t' 're_PbPf' 're_ri' 're_intaopr'...
+        're_maxaopr' 're_tmaxaopr' 're_intaoprlessdbp' 're_intaoxsp' ...
+        're_maxaoxsp' 're_tmaxaoxsp' 're_aopinf' 're_aofita' 're_aofitb' ... 
+        're_aorsq' 're_prob' 're_intbapr' 're_maxbapr' 're_tmaxbapr' ...
+        're_intbaxsp' 're_maxbaxsp' 're_tmaxbap' 're_bafita' 're_bafitb' ...
+        're_barsq' 're_bapinf' 're_wf1i' 're_wf1t' 're_wf1a' 're_wbi' ...
+        're_wbt' 're_wba' 're_wf2i' 're_wf2t' 're_wf2a' 're_wri' ...
+        're_rhoc'}; % header
+   
+    
     % % writetable
     Results_table=cell2table(proc_var, 'VariableNames',header);
     writetable(Results_table, xlsfile);
