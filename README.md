@@ -15,6 +15,7 @@ The method for wave intensity analysis is based on:
 * Alun Hughes, Chloe Park, Anenta Ramakrishnan, Jamil Mayet, Nish Chaturvedi, Kim Parker. Feasibility of estimation of aortic wave intensity using non-invasive pressure recordings in the absence of flow velocity in man.
 Front. Physiol., 2020; 11: 550. https://doi.org/10.3389/fphys.2020.00550
 
+Much of this code was developed from original code by Kim Parker.
 I am grateful to Richard Scott for information about variables in the BP plus XML file, identifying bugs and for code suggestions.
 
 ## Known bugs
