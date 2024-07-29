@@ -32,14 +32,12 @@
 % folder throughout the program and acknowledging use of 'fill_between.m'
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Things to do
-% CHECK T1 and T2 definitions in Sphygmocor!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-% expand outputs
 % estimate SV / CO
 % estimate EF1 substitute
-% include enumeration of files rejected for poor quality
+% CHECK with old BPplus cardioscope files
 % read_BPpluscardioscope.m Line 28 - ss.p_all
-% read_BPpluscardioscope.m Line 35 naming confusion over NIBP etc...
 % read_BPpluscardioscope.m Line 49 ao.ed
+% CHECK rhoc values which look too low to me
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% m files required to be in directory (in addition to bpp_Res2.m)
 % ai_v2.m
@@ -481,9 +479,15 @@ for file_number=1:no_of_files
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     else
         % Error trap for low SNR and message
+        proc_var{record_no,1}=filename;                                         % filename
+        proc_var{record_no,2}=metadata.datestring;                              % Date as text string
+        proc_var{record_no,3}=metadata.bppvers;                                 % BP+ software version
+        proc_var{record_no,4}=metadata.bppalgo;                                 % BP+ algorithm
+        proc_var{record_no,5}=bRes_version;                                     % bRes version
+        proc_var{record_no,6}=kres_v;                                           % kreservoir version
+        proc_var{record_no,17}=metadata.snr;                                    % Signal to Noise Ratio
         unprocessed_no = unprocessed_no+1;
         disp(strcat(filename, ' not processed due to poor quality'));
-        % close(h);
     end
 
     %% increment record number
@@ -532,7 +536,6 @@ end
 %% Tidy up
 % rather than clearing the workspace for now I've left all non-redundant
 % variables so that they can be used for debugging
-% clear cuxwia;
 
 % % message at end
 msg=string(no_of_files);

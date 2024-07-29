@@ -32,7 +32,6 @@ function [metadata, ba, ao, ss] = read_BPplusCardioScope(data, Npoly, Frame)
     ss.averagePulsePointsIndexes=str2double(split(result.ssAverageBeatPointsIdxs.Text,','))+1;
 
     % nibp brachial measurement
-    % FIXME: naming confusion between NIBP values and those from the calculated ba waveforms.
     ba.sbp=str2double(measDataLogger.Sys.Text);                                         % brachial systolic BP (NIBP), mmHg
     ba.dbp=str2double(measDataLogger.Dia.Text);                                         % brachial diastolic BP (NIBP), mmHg
     ba.pp=ba.sbp-ba.dbp;                                                                % brachial pulse pressure (NIBP), mmHg
