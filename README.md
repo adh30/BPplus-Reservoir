@@ -1,5 +1,5 @@
 # BPplus-Reservoir (*bpp_Res2*)
-Reservoir analysis for BPplus files version 2 for BP+ and Pulsecor cardioscope files (\*.xml)  .
+Reservoir analysis for BPplus files version 2 for BP+ and Pulsecor cardioscope files (\*.xml).
 Matlab scripts to perform reservoir analysis, pressure-only wave intensity analysis and estimate some other hemodynamic parameters from non-invasive brachial blood pressure waveforms.
 
 **This is the beta 5 version and hasn't been subjected to extensive testing. 
