@@ -5,7 +5,7 @@ function [y1handle, y2handle, h] = fill_between(x, y1, y2, where, varargin)
 % Save current axes so it can't change during runtime
 ca = gca;
 
-% Check hold status so we can return things to how they were 
+% Check hold status so we can return things to how they were
 initialHoldState = ishold(ca);
 hold(ca, 'on');
 
@@ -33,19 +33,19 @@ end
 % see if y1 OR y2 are constants
 nx = numel(x);
 ny1 = numel(y1);
-ny2 = numel(y2); 
+ny2 = numel(y2);
 if nx == ny1 || nx == ny2
-	%fine
+    %fine
 else
-	error('Either y1 or y2 have to be the same size as x')
+    error('Either y1 or y2 have to be the same size as x')
 end
 
 if ny1 == 1
-	y1 = y1*ones(size(x));
+    y1 = y1*ones(size(x));
 end
 
 if ny2 == 1
-	y2 = y2*ones(size(x));
+    y2 = y2*ones(size(x));
 end
 
 %%
@@ -73,7 +73,7 @@ for n=2:numel(where)
     end
 end
 
-% Now call the fill function for each  
+% Now call the fill function for each
 if max(cat)==0
     error('no area to fill');
 end
@@ -83,13 +83,10 @@ for n = 1:max(cat)
     % ---------------------------------
 end
 
-
 %% Now plot the full x,y1 and x,y2 lines
 hold on
 y1handle = plot(x,y1,'k-');
 y2handle = plot(x,y2,'k-');
-
-
 
 %% Apply formatting
 
@@ -103,7 +100,7 @@ uistack(h, 'bottom')
 
 % return to initial hold state
 if initialHoldState==0
-	hold(ca, 'off');
+    hold(ca, 'off');
 end
 
 % make sure none of the fills run over the axes
@@ -111,17 +108,13 @@ set(ca,'Layer','top')
 
 end
 
-
 function h = fill_patch(x, y1, y2, where)
-% Draw the filled patch 
-
+% Draw the filled patch
 default_col=[1 0 0];
-
 x =[x(where), fliplr(x(where))];
 y =[y1(where), fliplr(y2(where))];
 
 % DRAW THE PATCH --------
 h = patch(x, y, default_col);
 % -----------------------
-
 end
