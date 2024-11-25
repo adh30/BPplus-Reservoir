@@ -23,21 +23,21 @@
 % http://www.gnu.org/licenses/gpl.html
 
 %% Versions
-% bpp_res2 (beta5) - *** IN PROGRESS ***
+% bpp_res2 (beta5) - Expand calculated variables so they match key Sphygmocor variables; 
+% - Use separate functions to read Cardioscope and BP+ files;
+% - Improve detection of end of systole; 
+% - Fix bug in Wf1 and Wf2 peak identification 
+% - Better identification of problems with fits 
+% - Some error salvage
+% - Fix bugs in figures
+% - Cut number of figures to one per BP+ recording
+
 % bpp_res2 (beta4) - modifications to ai_v1 based on suggestions from
 % Richard Scott now renamed ai_v2.
 % bpp_res2 (beta3) - beta version adapted to read old and new BPplus. Also
 % incorporates additional information and suggestions from Richard Scott.
 % Minor bug fixes to alternative folder setting, propagating default
 % folder throughout the program and acknowledging use of 'fill_between.m'
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Things to do
-% estimate SV / CO
-% estimate EF1 substitute
-% CHECK with old BPplus cardioscope files
-% read_BPpluscardioscope.m Line 28 - ss.p_all
-% read_BPpluscardioscope.m Line 49 ao.ed
-% CHECK rhoc values which look too low to me
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% m files required to be in directory (in addition to bpp_Res2.m)
 % ai_v2.m
