@@ -23,21 +23,26 @@
 % http://www.gnu.org/licenses/gpl.html
 
 %% Versions
+% bpp_res2 (beta4) - modifications to ai_v1 based on suggestions from
+% Richard Scott now renamed ai_v2.
+% bpp_res2 (beta3) - beta version adapted to read old and new BPplus. 
+% Also incorporates additional information and suggestions from Richard Scott.
+% Minor bug fixes to alternative folder setting, propagating default
+% folder throughout the program and acknowledging use of 'fill_between.m'
+
 % bpp_res2 (beta5) - Expand calculated variables so they match key Sphygmocor variables; 
 % - Use separate functions to read Cardioscope and BP+ files;
-% - Improve detection of end of systole; 
-% - Fix bug in Wf1 and Wf2 peak identification 
+% - Improved detection of end of systole; 
+% - Fixed bug in Wf1 and Wf2 peak identification 
 % - Better identification of problems with fits 
 % - Some error salvage
 % - Fix bugs in figures
 % - Cut number of figures to one per BP+ recording
 
-% bpp_res2 (beta4) - modifications to ai_v1 based on suggestions from
-% Richard Scott now renamed ai_v2.
-% bpp_res2 (beta3) - beta version adapted to read old and new BPplus. Also
-% incorporates additional information and suggestions from Richard Scott.
-% Minor bug fixes to alternative folder setting, propagating default
-% folder throughout the program and acknowledging use of 'fill_between.m'
+% bpp_Res2 (beta6) July 2026
+% fix bugs - headernumber corrected, restore error trap for Wf2, removed double division... 
+% ...by samplerate for time of max aortic and brachial reservoir and excess pressure.
+% added error trap to ensure subdirectories exist
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% m files required to be in directory (in addition to bpp_Res2.m)
 % ai_v2.m
@@ -46,16 +51,15 @@
 % kreservoir_v15.m
 % fill_between.m
 %% Constants
-bRes_version='beta5';   % Version of bRes_bpp
+bRes_version='beta6';   % Version of bRes_bpp
 kres_v='v15';           % Version tracking for reservoir fitting
-headernumber=54;        % Headers for columns of results (see end)
+headernumber=89;        % Headers for columns of results (see end)
 mmHgPa = 133.322;           % P conversion for WIA
 uconst=1;               % Empirical constant to convert normalized velocity to m/s
 unprocessed_no = 0;     % Number of unprocessed files
 Npoly=3;                % Order of polynomial fit for sgolay
-Frame=9;                % Window length for sgolay based on (Rivolo et al.
-% IEEE Engineering in Medicine and Biology Society
-% Annual Conference 2014; 2014: 5056-9).
+Frame=9;                % Window length for dI sgolay based on (Rivolo et al. IEEE Engineering in Medicine 
+                        % and Biology Society Annual Conference 2014; 2014: 5056-9).
 %% Select files and folder
 % folder from json
 jtext = fileread('bppconfig.json');
@@ -73,13 +77,27 @@ if ~exist(folder_name, 'dir')
     switch answer
         case 'Yes'
             folder_name = uigetdir;
-            folder_name = strcat(folder_name,'\');  % adds \ to end of folder name for windows
+            folder_name = [folder_name filesep];  % adds \ to end of folder name for windows
         case 'No [end]'                             % end if no folder identified
             return
     end
 end
 % ensure subdirectories exist to be written to
-% TBD
+processed_dir = fullfile(folder_name,'Processed');
+plots_dir     = fullfile(folder_name,'Plots');
+results_dir   = fullfile(folder_name,'Results');
+
+if ~exist(processed_dir,'dir')
+    mkdir(processed_dir);
+end
+
+if ~exist(plots_dir,'dir')
+    mkdir(plots_dir);
+end
+
+if ~exist(results_dir,'dir')
+    mkdir(results_dir);
+end
 
 % identify xml files
 file_lists=dir(fullfile(folder_name, '*.xml'));
@@ -235,6 +253,13 @@ for file_number=1:no_of_files
         [dippks(2),diplocs(2), dipw(2)]=findpeaks(di(lsys-20:lsys+20), 'NPeaks',1, 'SortStr','descend'); % find 2nd dI+ peaks (Wf2) on the asssumption it follows Wf2 and allowing 5 samples beyond length of systole.
         diplocs(2)=diplocs(2)+(lsys-20); % add lsys-20 since we are only searching from lsys-20
 
+        % fix problem if no negative peak exists
+        if isempty(dimpks)
+         dimpks=0;
+         dimlocs=0;
+        dimw=0;
+        end
+
         % calculate peak time (s)
         dipt=diplocs/samplerate;
         dimt=dimlocs/samplerate;
@@ -246,11 +271,11 @@ for file_number=1:no_of_files
         wri=dimarea/diparea(1);
 
         % % error trap when W2 is unmeasureable
-        %  if length(dippks)==1
-        %     dippks(2)=0;
-        %     dipt(2)=0;
-        %     diparea(2)=0;
-        %  end
+          if length(dippks)==1
+             dippks(2)=0;
+             dipt(2)=0;
+             diparea(2)=0;
+          end
 
         % Estimate c (wavespeed) as k*dP/du where k is empirical constant
         rhoc=max(aoPxs)*mmHgPa/1000; % units (m/s)
@@ -445,11 +470,11 @@ for file_number=1:no_of_files
         proc_var{record_no,56}=ao_ri;                                           % aortic reflection index (Pb/(Pb+Pf))
         proc_var{record_no,57}=sum(aoPr_av)/samplerate;                         % integral aoPres, mmHg.s
         proc_var{record_no,58}=maxPra;                                          % max aortic Pres, mmHg
-        proc_var{record_no,59}=max_tra/samplerate;                              % Time max aortic Pres, s                  ****************RENAME
+        proc_var{record_no,59}=max_tra;                                         % Time max aortic Pres, s [fixed by removing /samplerate]
         proc_var{record_no,60}=sum(aoPr_av-ba.dbp)/samplerate;                  % integral aortic Pres-diastolic, mmHg.s
         proc_var{record_no,61}=sum(aoPxs)/samplerate;                           % Integral excess pressure, mmHg.s
         proc_var{record_no,62}=maxPxsa;                                         % max excess P, mmHg
-        proc_var{record_no,63}=max_txsa/samplerate;                             % time of max excess P, sec
+        proc_var{record_no,63}=max_txsa;                                        % time of max excess P, s [fixed by removing /samplerate]
         proc_var{record_no,64}=aoPinf_av;                                       % aortic P infinity, mmHg
         proc_var{record_no,65}=aofita_av;                                       % aortic rate constant A (ka), 1/sec
         proc_var{record_no,66}=aofitb_av;                                       % aortic rate constant B (kb), 1/sec
@@ -457,10 +482,10 @@ for file_number=1:no_of_files
         proc_var{record_no,68}=prob;                                            % likely problem with fit
         proc_var{record_no,69}=sum(baPr_av)/samplerate;                         % integral baPres, mmHg.s
         proc_var{record_no,70}=maxPrb;                                          % max baPres, mmHg
-        proc_var{record_no,71}=max_trb/samplerate;                              % Time max Pres, sec
+        proc_var{record_no,71}=max_trb;                                         % Time max Pres, s [fixed by removing /samplerate]
         proc_var{record_no,72}=sum(baPxs)/samplerate;                           % Integral ba excess pressure, mmHg.s
         proc_var{record_no,73}=maxPxsb;                                         % max ba excess P, mmHg
-        proc_var{record_no,74}=max_txsb/samplerate;                             % time of max ba excess P, sec
+        proc_var{record_no,74}=max_txsb;                                        % time of max ba excess P, s [fixed by removing /samplerate]
         proc_var{record_no,75}=bafita_av;                                       % brachial rate constant A (ka), 1/sec
         proc_var{record_no,76}=bafitb_av;                                       % brachial rate constant B (kb), 1/sec
         proc_var{record_no,77}=barsq_av;                                        % brachial R2 for diastolic fit
