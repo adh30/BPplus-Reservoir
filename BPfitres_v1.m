@@ -15,6 +15,12 @@
 %% Versions
 % v1 First stable version(03/01/20) based on fitres_v5 and uses kreservoir_v14
 % modified to use kreservoir15 13/04/24 ADH (trivial change so not renamed from v1)
+% v2 - TO FIX
+% T_av is inconsistent with the waveform fitted, no protection if cut is empty
+% correcoef may fail if diastolic segment has insufficient points
+% Possible off-by-one question in diastolic region - should I use first diastolic sample or last systolic sample?
+% No length consistency check between P_av and Pr_av
+
 
 %%
 function [Tn_av, Pinf_av, P_av,Pr_av,Pn_av,...

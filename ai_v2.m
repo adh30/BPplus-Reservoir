@@ -14,6 +14,11 @@ function [ai, Pi, Tfoot, Ti, Tmax, typetxt] = ai_v2(p,samplerate)
 % relationship to pressure wave forms. Circulation 1980; 62(1): 105-16.
 % Nichols & O'Rourke. McDonald's Blood Flow in Arteries 1998.
 % M. Karamanoglu. Diagnostic Applanation Tonometry 1996.
+
+% version 2.1
+%   1. Fixed possible out-of-bounds access to zcross(4)
+%   2. Fixed possible division by zero when normalising d4p
+%   3. Fixed possible division by zero in AI calculation
 %%
 samples=1:length(p);
 dpdt=fsg71(p);
@@ -24,11 +29,25 @@ d4p=fsg71(d3p);
 %ndp=dpdt./max(dpdt);
 %nd2p=d2p./max(d2p);
 %nd3p=d3p./max(d3p);
-nd4p=1e-6+fix(10*(d4p./max(d4p))); % this filters out minor crossings (<10%)
+m4 = max(d4p);
+
+if m4 == 0
+    error('ai_v2:ZeroFourthDerivative', ...
+          'Fourth derivative contains no non-zero values');
+end
+
+nd4p = 1e-6 + fix(10*(d4p./m4));    % this filters out minor crossings (<10%)
+
 %np=(p-min(p))./(max(p)-min(p));
 d4ptable=[samples;nd4p].'; % create column oriented table from data
 zerod4p=round(mminterp(d4ptable,2,0)); % establish zero crossings
 zcross=zerod4p(:,1);
+
+% error trap
+if numel(zcross) < 3
+    error('ai_v2:InsufficientZeroCrossings', ...
+          'Fewer than 3 fourth-derivative zero crossings found');
+end
 %zeroslope=d5p(zcross); % establish where zeros correspond to negative slope d5p - not used so far
 
 %Define reference points with regard to 4th derivative (Kelly et al., 1989)
@@ -36,10 +55,16 @@ zcross=zerod4p(:,1);
 tfoot=zcross(1);
 ti=zcross(3);
 
+
 % Allow for type B & C otherwise Pi may = Ps.  The choice of 5 samples (0.025ms) is arbitrary
-if tmax-ti<5
-    ti=zcross(4);
+if tmax-ti < 5
+    if numel(zcross) < 4
+        error('ai_v2:InsufficientZeroCrossings', ...
+              'Fourth zero crossing required but not found');
+    end
+    ti = zcross(4);
 end
+
 
 pfoot = p(tfoot); % as defined by O'Rourke p216 and Kelly 1989
 Pi=p(ti); % as defined by O'Rourke p216 and Kelly 1989
@@ -48,6 +73,11 @@ PsPi=pmax-Pi;
 Tfoot=tfoot/samplerate;     % calculate in s
 Ti = ti/samplerate;
 Tmax=tmax/samplerate;
+% error trap for division by zero
+if PsPd == 0
+    error('ai_v2:ZeroPulsePressure', ...
+          'Pulse pressure is zero');
+end
 ai=round(PsPi/PsPd*100);
 
 % Identify Type C

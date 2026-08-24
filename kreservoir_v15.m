@@ -28,8 +28,16 @@
 %  v.11 (31/01/14) various minor corrections to run with cafe_data_v5 [ADH]
 %  v.12 (08/07/15) various minor corrections to run with batch data (batch_res_v7 [ADH])
 %  v.13 (17/03/19) to run with with batch data (batch_res_v12 [ADH])
-%  v.14 (11/01/20) added error trap to calculate b using linear fit to log(P) in diastole if method of moments fails [ADH]
+%  v.14 (11/01/20) added error trap to calculate b using linear fit to log(P) in diastole if method of moments fails
 %  v.15 (18/12/23) minor tidying 
+%  v.15.1 (27/07/26) Bug fixes and error traps added to improve robustness of code [ADH]
+%   1. Fixed  BTd=exp(X/y) which was mathematically inconsistent and dimensionally wrong
+%   2. Fixed possible failure when diastole contains fewer than 2 samples
+%   3. Fixed possible failure when find returns empty for k=find((prend-prd).*(prend(np)-prd(np))<=0,1,"first")
+%   4. Fixed division-by-zero risk in beat_int and dias_int  
+%   5. Fixed possible invalid logarithm Y=log(P(nn:end))
+%   6. Fixed fsg721 if waveform is shorter than 7 samples
+
 %%
 function [Pr,A,B,Pinf,Tn,Pn]=kreservoir_v15(P,Tb, sampling_rate)
 %   inputs  P    - pressure starting at diastolic pressure
@@ -61,7 +69,13 @@ tn=t(nn);
 pd=p(nn:end);       % pressure during diastole
 td=t(nn:end)-tn;    % number of samples in diastole
 Td=Tb-tn;           % duration of diastole
+% error trap for insufficient diastolic samples
+if length(td) < 2
+    error('kreservoir_v15:InsufficientDiastole',...
+          'Diastolic segment contains fewer than two samples');
+end
 dt=td(2)-td(1);
+
 N=length(pd)-1;     % length of diastole-1
 
 % calculation of E2/E1 using Simpson's rule
@@ -91,9 +105,16 @@ options=optimset('Display','iter','TolX',1e-16,'display','off');
 if y >0
     BTd=y;
 else
-    y=log(P(nn:end));               % use log slope
-    X=(1:length(y))/sampling_rate;
-    BTd=exp(X/y);
+   % use log slope
+    % error trap
+    if any(P(nn:end) <= 0)
+    error('kreservoir_v15:NonPositivePressure', ...
+    'Cannot estimate log-slope from non-positive pressure');
+    end
+    Y = log(P(nn:end));
+    X = (0:length(Y)-1)/sampling_rate;
+    pfit = polyfit(X,Y,1);      % Y = mX + c
+    BTd = -pfit(1)*Td;
 end
 
 % given b calculate a from E1
@@ -150,8 +171,12 @@ prend=pr(nn:end);
 %k=find((prend-prd).*(prend(np)-prd(np))<=0,1);
 % changed to avoid Warning: Colon operands must be real scalars. This warning will become an error in a future release.
 k=find((prend-prd).*(prend(np)-prd(np))<=0,1, "first");
-prr=pr;
-prr(nn+k:end)=prd(k+1:end);
+if isempty(k)
+    prr=pr;
+else
+    prr=pr;
+    prr(nn+k:end)=prd(k+1:end);
+end
 
 % return variables
 Pr=prr;
@@ -223,6 +248,11 @@ function Prd = dias_int(Ps,Ts,a,b,Pinf,nn)
 %end
 
 % calculate the integral using the trapezoidal rule
+% error trap for division by zero
+if abs(a+b) < eps
+    a = a + eps;
+end
+
 dt=Ts(2)-Ts(1);
 pse=cumtrapz(Ps.*exp((a+b)*Ts))*dt;
 prb = exp(-(a+b)*Ts).*(a*pse + Ps(1) - (b*Pinf/(a+b))) + b*Pinf/(a+b);
@@ -269,6 +299,11 @@ end
 %	output	dx
 %	corrected for time shift
 function dx=fsg721(x)
+% error trap
+    if length(x) < 7
+        error('fsg721:InputTooShort', ...
+        'Input must contain at least 7 samples');
+    end
 % 2nd order polynomial
 C=[0.107143,0.071429,0.035714];
 B=zeros(1,7);
