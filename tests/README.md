@@ -1,6 +1,6 @@
 # Tests
 
-Regression tests for the XML readers, using real device files as fixtures
+Regression tests for the XML readers, using real anonymised device files as fixtures
 (see `fixtures/README.md`).
 
 ## Running
@@ -11,10 +11,6 @@ From the repo root in MATLAB:
 results = runtests('tests');
 table(results)
 ```
-
-Or, if you're using the MATLAB MCP server set up for Claude Desktop/Code,
-its `run_matlab_test_file` tool can run `tests/testReadBPplusReaders.m`
-directly.
 
 ## What's covered
 
