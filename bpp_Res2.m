@@ -40,9 +40,40 @@
 % - Cut number of figures to one per BP+ recording
 
 % bpp_Res2 (beta6) July 2026
-% fix bugs - headernumber corrected, restore error trap for Wf2, removed double division... 
+% fix bugs - headernumber corrected, restore error trap for Wf2, removed double division...
 % ...by samplerate for time of max aortic and brachial reservoir and excess pressure.
 % added error trap to ensure subdirectories exist
+
+% bpp_Res2 (beta7) August 2026
+% - removed dead Processed/Plots/Results folder creation (never written to;
+%   actual output goes to figures\ and results\)
+% - moved Excel results write out of the main processing loop so resdata.xls
+%   is written once at the end instead of on every iteration
+% - read_BPplusBPplus.m: removed duplicate block that overwrote
+%   ao.averagePulsePointsIndexes with cPulseStartIndexes instead of
+%   cAveragePulsePointsIndexes
+% - read_BPplusBPplus.m: fixed NIBP mode guard to check measDataLogger for
+%   NibpModeUsed instead of checking the wrong struct level
+% - read_BPplusBPplus.m: fixed patienet_id typo -> patient_id
+% - read_BPplusCardioScope.m: aortic lag now parsed from software_version's
+%   build number (regex) and matched via a lookup table instead of a raw
+%   substring match on "038", to avoid false-matching other version strings
+% - moved bppluspoints.m (not part of the pipeline, not runnable as-is) to
+%   dev/
+% - standardised figfolder/datafolder/xlsfile path construction on fullfile
+%   instead of strcat with hardcoded backslashes
+% - ao.ed now set to NaN when unavailable (CardioScope files; BPplus files
+%   missing the cST field) instead of -1 or [], so a missing value can't be
+%   mistaken for a real duration if ao.ed is ever consumed downstream (it
+%   is not currently used anywhere in the pipeline - confirmed by tracing
+%   all references)
+% - renamed prob -> qcaofit (aortic fit quality control) and INVERTED its
+%   polarity to match the new name: qcaofit=1 now means the aortic reservoir
+%   fit passed its basic checks, qcaofit=0 means it failed one. Previously
+%   prob=1 meant a problem was detected. Output column header renamed
+%   re_prob -> re_qcaofit to match - any downstream analysis of past
+%   resdata.xls files must NOT be compared directly against this column
+%   without accounting for the flipped meaning
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% m files required to be in directory (in addition to bpp_Res2.m)
 % ai_v2.m
@@ -51,7 +82,7 @@
 % kreservoir_v15.m
 % fill_between.m
 %% Constants
-bRes_version='beta6';   % Version of bRes_bpp
+bRes_version='beta7';   % Version of bRes_bpp
 kres_v='v15';           % Version tracking for reservoir fitting
 headernumber=89;        % Headers for columns of results (see end)
 mmHgPa = 133.322;           % P conversion for WIA
@@ -82,23 +113,6 @@ if ~exist(folder_name, 'dir')
             return
     end
 end
-% ensure subdirectories exist to be written to
-processed_dir = fullfile(folder_name,'Processed');
-plots_dir     = fullfile(folder_name,'Plots');
-results_dir   = fullfile(folder_name,'Results');
-
-if ~exist(processed_dir,'dir')
-    mkdir(processed_dir);
-end
-
-if ~exist(plots_dir,'dir')
-    mkdir(plots_dir);
-end
-
-if ~exist(results_dir,'dir')
-    mkdir(results_dir);
-end
-
 % identify xml files
 file_lists=dir(fullfile(folder_name, '*.xml'));
 no_of_files=length(file_lists);
@@ -280,18 +294,19 @@ for file_number=1:no_of_files
         % Estimate c (wavespeed) as k*dP/du where k is empirical constant
         rhoc=max(aoPxs)*mmHgPa/1000; % units (m/s)
 
-        %% possible problems with fits
+        %% aortic fit quality control - does the fit pass basic sanity checks?
+        % qcaofit = 1 if the aortic reservoir fit passes; 0 if it fails any check
         % ****** MORE TO DO HERE *********************
         if aoPinf_av>=ba.dbp || aoPinf_av<-12 || aofita_av<=0 || aofitb_av<=0 || aorsq_av<0.9
-            prob=1;
+            qcaofit=0;
         else
-            prob =0;
+            qcaofit=1;
         end
         % *************should write error salvage sometime!
 
         %% make figures and data subfolders
-        figfolder=strcat(folder_name, 'figures\');
-        datafolder=strcat(folder_name,'results\');
+        figfolder=fullfile(folder_name, 'figures');
+        datafolder=fullfile(folder_name, 'results');
         if ~exist(figfolder, 'dir')
             mkdir(figfolder);
         end
@@ -386,7 +401,7 @@ for file_number=1:no_of_files
         set(findobj(gcf,'type','axes'),'FontName','Arial','FontSize',8);
         % Save
         jpgfile = regexprep(filename,'.xml','figs.jpg');
-        print ('-djpeg', '-r300' , [figfolder jpgfile]);
+        print ('-djpeg', '-r300' , fullfile(figfolder, jpgfile));
 
         % clear and close figures
         clear f1 f2
@@ -479,7 +494,7 @@ for file_number=1:no_of_files
         proc_var{record_no,65}=aofita_av;                                       % aortic rate constant A (ka), 1/sec
         proc_var{record_no,66}=aofitb_av;                                       % aortic rate constant B (kb), 1/sec
         proc_var{record_no,67}=aorsq_av;                                        % aortic R2 for diastolic fit
-        proc_var{record_no,68}=prob;                                            % likely problem with fit
+        proc_var{record_no,68}=qcaofit;                                         % aortic fit passes basic QC checks (1=pass, 0=fail)
         proc_var{record_no,69}=sum(baPr_av)/samplerate;                         % integral baPres, mmHg.s
         proc_var{record_no,70}=maxPrb;                                          % max baPres, mmHg
         proc_var{record_no,71}=max_trb;                                         % Time max Pres, s [fixed by removing /samplerate]
@@ -522,42 +537,41 @@ for file_number=1:no_of_files
     else
         record_no=record_no+1;
     end
-    %% Save the results as an excel spreadheet
-    % % % %
-    xlsfile=strcat(folder_name, 'results\resdata.xls');
-    % header = {'re_file' 're_basbp' 're_tbasbp' 're_minp' 're_intaopr' 're_maxaopr'...
-    %     're_tmaxaopr' 're_intaoprlessdbp' 'date' 're_sam_rate'...
-    %     're_intaoxsp' 're_maxaoxsp' 're_tmaxaoxsp' 're_aotn' 're_aopinf' 're_aopn'...
-    %     're_aofita' 're_aofitb' 're_aorsq' 're_prob' 're_kres'...
-    %     're_aitype' 're_hr' 're_sbp2' 're_intbapr' 're_maxbapr' 're_tmaxbapr'...
-    %     're_intbaxsp' 're_maxbaxsp' 're_tmaxbap' 're_bafita' 're_bafitb'...
-    %     're_barsq' 're_bapinf' 're_bapn' 're_ao_dpdt' 're_ba_dpdt'...
-    %     're_pb_pf' 're_ri' 're_wf1i'  're_wf1t' 're_wf1a' 're_wbi' ...
-    %     're_wbt' 're_wba' 're_wf2i'  're_wf2t' 're_wf2a'  're_wri' 're_rhoc' ...
-    %     're_aosevr' 're_version' 're_quality' 'ao_ai'}; % header
-    header = {'re_file' 're_date' 're_bppvers' 're_bppalgo' ...
-        're_resvers' 're_kres' 're_sam_rate' 're_basbp' 're_tbasbp',...
-        're_ba_dbp' 're_hr' 're_ba_map' 're_bapp' 're_aosbp' ...
-        're_aodbp' 're_aopp' 're_snr' 're_rmssd' 're_sAI' 're_ppv'...
-        're_rwttf' 're_rwttp' 're_sep' 're_quality' 're_ba_t1' 're_ba_p1'...
-        're_ba_t2' 're_ba_p2' 're_pai' 're_ba_esp' 're_ba_dpdt' 're_ao_ed'...
-        're_ao_esp' 're_ao_p1' 're_ao_p2' 're_aotr' 're_aitype' 're_ppar' ...
-        're_ao_ap' 're_pmsys' 're_pmdia' 're_ao_tti' 're_ao_dti' 're_aosevr'...
-        're_aodd' 're_ao_ai' 're_ai75' 're_aoti' 're_ao_ew' 're_ao_dpdt' ...
-        're_pb' 're_pb_t' 're_pf' 're_pf_t' 're_PbPf' 're_ri' 're_intaopr'...
-        're_maxaopr' 're_tmaxaopr' 're_intaoprlessdbp' 're_intaoxsp' ...
-        're_maxaoxsp' 're_tmaxaoxsp' 're_aopinf' 're_aofita' 're_aofitb' ... 
-        're_aorsq' 're_prob' 're_intbapr' 're_maxbapr' 're_tmaxbapr' ...
-        're_intbaxsp' 're_maxbaxsp' 're_tmaxbap' 're_bafita' 're_bafitb' ...
-        're_barsq' 're_bapinf' 're_wf1i' 're_wf1t' 're_wf1a' 're_wbi' ...
-        're_wbt' 're_wba' 're_wf2i' 're_wf2t' 're_wf2a' 're_wri' ...
-        're_rhoc'}; % header
-   
-    
-    % % writetable
-    Results_table=cell2table(proc_var, 'VariableNames',header);
-    writetable(Results_table, xlsfile);
 end
+%% Save the results as an excel spreadheet
+% % % %
+xlsfile=fullfile(folder_name, 'results', 'resdata.xls');
+% header = {'re_file' 're_basbp' 're_tbasbp' 're_minp' 're_intaopr' 're_maxaopr'...
+%     're_tmaxaopr' 're_intaoprlessdbp' 'date' 're_sam_rate'...
+%     're_intaoxsp' 're_maxaoxsp' 're_tmaxaoxsp' 're_aotn' 're_aopinf' 're_aopn'...
+%     're_aofita' 're_aofitb' 're_aorsq' 're_prob' 're_kres'...
+%     're_aitype' 're_hr' 're_sbp2' 're_intbapr' 're_maxbapr' 're_tmaxbapr'...
+%     're_intbaxsp' 're_maxbaxsp' 're_tmaxbap' 're_bafita' 're_bafitb'...
+%     're_barsq' 're_bapinf' 're_bapn' 're_ao_dpdt' 're_ba_dpdt'...
+%     're_pb_pf' 're_ri' 're_wf1i'  're_wf1t' 're_wf1a' 're_wbi' ...
+%     're_wbt' 're_wba' 're_wf2i'  're_wf2t' 're_wf2a'  're_wri' 're_rhoc' ...
+%     're_aosevr' 're_version' 're_quality' 'ao_ai'}; % header
+header = {'re_file' 're_date' 're_bppvers' 're_bppalgo' ...
+    're_resvers' 're_kres' 're_sam_rate' 're_basbp' 're_tbasbp',...
+    're_ba_dbp' 're_hr' 're_ba_map' 're_bapp' 're_aosbp' ...
+    're_aodbp' 're_aopp' 're_snr' 're_rmssd' 're_sAI' 're_ppv'...
+    're_rwttf' 're_rwttp' 're_sep' 're_quality' 're_ba_t1' 're_ba_p1'...
+    're_ba_t2' 're_ba_p2' 're_pai' 're_ba_esp' 're_ba_dpdt' 're_ao_ed'...
+    're_ao_esp' 're_ao_p1' 're_ao_p2' 're_aotr' 're_aitype' 're_ppar' ...
+    're_ao_ap' 're_pmsys' 're_pmdia' 're_ao_tti' 're_ao_dti' 're_aosevr'...
+    're_aodd' 're_ao_ai' 're_ai75' 're_aoti' 're_ao_ew' 're_ao_dpdt' ...
+    're_pb' 're_pb_t' 're_pf' 're_pf_t' 're_PbPf' 're_ri' 're_intaopr'...
+    're_maxaopr' 're_tmaxaopr' 're_intaoprlessdbp' 're_intaoxsp' ...
+    're_maxaoxsp' 're_tmaxaoxsp' 're_aopinf' 're_aofita' 're_aofitb' ...
+    're_aorsq' 're_qcaofit' 're_intbapr' 're_maxbapr' 're_tmaxbapr' ...
+    're_intbaxsp' 're_maxbaxsp' 're_tmaxbap' 're_bafita' 're_bafitb' ...
+    're_barsq' 're_bapinf' 're_wf1i' 're_wf1t' 're_wf1a' 're_wbi' ...
+    're_wbt' 're_wba' 're_wf2i' 're_wf2t' 're_wf2a' 're_wri' ...
+    're_rhoc'}; % header
+
+% % writetable
+Results_table=cell2table(proc_var, 'VariableNames',header);
+writetable(Results_table, xlsfile);
 %% Tidy up
 % rather than clearing the workspace for now I've left all non-redundant
 % variables so that they can be used for debugging

@@ -44,15 +44,33 @@ function [metadata, ba, ao, ss] = read_BPplusCardioScope(data, Npoly, Frame)
     ao.sbp=str2double(result.aoSys.Text);                                               % cSBP calculated by BP+, mmHg
     ao.dbp=str2double(result.aoDia.Text);                                               % cDBP calculated by BP+, mmHg
     ao.pp=ao.sbp-ao.dbp;                                                                % cPP calculated by BP+, mmHg
-    ao.ed = -1;                                                                         % TODO Calcualte ED as duration of systole. NOTE: BP+ cED is a %
+    ao.ed = NaN;                                                                        % not available for CardioScope files. TODO Calcualte ED as duration of systole. NOTE: BP+ cED is a %
 
     %% aortic rhythm, average beat & start of pulses.
     ao.p_all=str2double(split(result.aoEstimate.Text,','));
 
-    % assumed delay from aortic pulse to cuff.
-    ao.lag = 0.18;
-    if (contains(data.CardioScope.MeasDataLogger.Attributes.software_version,"038"))
-        ao.lag = 0.06;
+    % assumed delay from aortic pulse to cuff, by firmware build number.
+    % Build number is parsed out of software_version (e.g. "SW.R7.VME.038" -> 38)
+    % rather than substring-matched, so a version like "SW.R7.VME.138" can't
+    % false-match on "038" appearing as a substring. Only build 38 is confirmed
+    % to need the 0.06 s lag; add further rows to lagByBuild as more are confirmed.
+    swver = measDataLogger.Attributes.software_version;
+    buildTokens = regexp(swver, '\d+', 'match');
+    if isempty(buildTokens)
+        warning('read_BPplusCardioScope:UnrecognisedSoftwareVersion', ...
+            'Could not parse a build number from software_version "%s"; using default aortic lag (0.18 s).', swver);
+        buildNum = NaN;
+    else
+        buildNum = str2double(buildTokens{end});   % last numeric run = build number
+    end
+
+    lagByBuild = struct('build', {38}, 'lag', {0.06});
+    ao.lag = 0.18;   % default for unrecognised/unlisted builds
+    for k = 1:numel(lagByBuild)
+        if buildNum == lagByBuild(k).build
+            ao.lag = lagByBuild(k).lag;
+            break
+        end
     end
 
     % Calculate offset to start of central pulses from suprasystolic pulse start indexes and aoLag.

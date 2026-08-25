@@ -1,3 +1,8 @@
+% Moved from repo root in beta7: not part of the bpp_Res2.m pipeline (not
+% listed in its required-files list) and not runnable as-is — ba_p_av and
+% ao_p_av are undefined here, and the referenced createfigure_bpp.m is not
+% in this repo. Kept for reference only.
+%
 % replicate index points in BP+
 % The aim here was to create something that looked like BP+ reporter and
 % allowed me to guess how the characteristic points were estimated. This
