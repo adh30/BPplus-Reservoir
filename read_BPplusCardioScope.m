@@ -44,7 +44,7 @@ function [metadata, ba, ao, ss] = read_BPplusCardioScope(data, Npoly, Frame)
     ao.sbp=str2double(result.aoSys.Text);                                               % cSBP calculated by BP+, mmHg
     ao.dbp=str2double(result.aoDia.Text);                                               % cDBP calculated by BP+, mmHg
     ao.pp=ao.sbp-ao.dbp;                                                                % cPP calculated by BP+, mmHg
-    ao.ed = -1;                                                                         % TODO Calcualte ED as duration of systole. NOTE: BP+ cED is a %
+    ao.ed = NaN;                                                                        % not available for CardioScope files. TODO Calcualte ED as duration of systole. NOTE: BP+ cED is a %
 
     %% aortic rhythm, average beat & start of pulses.
     ao.p_all=str2double(split(result.aoEstimate.Text,','));

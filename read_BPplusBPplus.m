@@ -57,7 +57,7 @@ function [metadata, ba, ao, ss] = read_BPplusBPplus(data)
     if isfield(result,'cST')
         ao.ed=str2double(result.cST.Text)/1000;                                         % cED calculated by BP+. duration of systole. NOTE: BP+ cED is a %
     else
-        ao.ed=[];
+        ao.ed=NaN;                                                                      % cST field not present in this file
     end
     
     %% aortic rhythm, average beat & start of pulses.
