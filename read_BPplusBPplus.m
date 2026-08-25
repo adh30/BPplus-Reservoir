@@ -12,12 +12,12 @@ function [metadata, ba, ao, ss] = read_BPplusBPplus(data)
     metadata.bppalgo=result.Attributes.algorithm_revision;                              % Software algorithm
     metadata.samplerate=str2double(measDataLogger.SampleRate.Text);                     % sample rate, Hz
     metadata.snr=str2double(result.SNR.Text);                                           % Signal to noise ratio, dB
-    metadata.patienet_id = '';
+    metadata.patient_id = '';
     metadata.notes = '';
     metadata.RawSuprasystolicPressure=measDataLogger.RawSuprasystolicPressure.Text;     % raw base 64 data
 
     % Mode is only available in later versions of xml
-    if isfield(data,'NibpMode')
+    if isfield(measDataLogger,'NibpModeUsed')
         metadata.mode = string(data.BPplus.MeasDataLogger.NibpModeUsed.Text);           % Measurement mode
     end
 
@@ -69,9 +69,6 @@ function [metadata, ba, ao, ss] = read_BPplusBPplus(data)
     ao.p_av=str2double(split(result.cAveragePulse.Text,','))';
     if isfield(result,'cAveragePulsePointsIndexes')
         ao.averagePulsePointsIndexes=str2double(split(result.cAveragePulsePointsIndexes.Text,','))+1;
-    end
-    if isfield(result,'cAveragePulsePointsIndexes')
-        ao.averagePulsePointsIndexes=str2double(split(result.cPulseStartIndexes.Text,','))+1;
     end
 
     %pPX brachial pulsatility index (PP/ba.map)
