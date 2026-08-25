@@ -2,7 +2,7 @@
 Reservoir analysis for BPplus files version 2 for BP+ and Pulsecor cardioscope files (\*.xml).
 Matlab scripts to perform reservoir analysis, pressure-only wave intensity analysis and estimate some other hemodynamic parameters from non-invasive brachial blood pressure waveforms.
 
-**This is the beta 6 version and hasn't been subjected to extensive testing. 
+**This is the beta 7 version and hasn't been subjected to extensive testing. 
 
 Some background on the reservoir-excess pressure analysis can be found in:
 
@@ -15,7 +15,7 @@ The method for wave intensity analysis is based on:
 * Alun Hughes, Chloe Park, Anenta Ramakrishnan, Jamil Mayet, Nish Chaturvedi, Kim Parker. Feasibility of estimation of aortic wave intensity using non-invasive pressure recordings in the absence of flow velocity in man.
 Front. Physiol., 2020; 11: 550. https://doi.org/10.3389/fphys.2020.00550
 
-Much of this code was developed from original code by Kim Parker.
+Much of this code was developed from original code by Kim Parker with additional input from Justin Davies. 
 I am grateful to Richard Scott for information about variables in the BP plus XML file, identifying bugs and for code suggestions.
 
 ## Known bugs
