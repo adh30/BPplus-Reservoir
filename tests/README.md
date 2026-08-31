@@ -15,8 +15,8 @@ table(results)
 ## What's covered
 
 `testReadBPplusReaders.m` exercises `read_BPplus.m`'s dispatch to
-`read_BPplusBPplus.m` / `read_BPplusCardioScope.m` against all six fixture
-files, and specifically regression-tests the beta7 fixes:
+`read_BPplusBPplus.m` / `read_BPplusCardioScope.m` against all six real
+fixture files, and specifically regression-tests the beta7 fixes:
 
 - the duplicate-block bug that overwrote `ao.averagePulsePointsIndexes`
   with the wrong source field
@@ -25,13 +25,22 @@ files, and specifically regression-tests the beta7 fixes:
 - the `patienet_id` -> `patient_id` typo
 - `ao.lag` resolving correctly via the firmware-build lookup table
 
+`testAiV2WaveformTypes.m` exercises `ai_v2.m`'s inflection-point detection
+and Murgo et al. Type A/B/C classification, via the full
+`read_BPplus.m` -> `ao.p_av` -> `ai_v2.m` path, against three
+hand-constructed synthetic waveforms (one per type). See
+`fixtures/README.md`'s "Synthetic ai_v2.m fixtures" section for exactly
+what's synthetic vs. copied from a real recording, and the caveat at the
+top of the test file for how the expected values were derived (a Python
+reimplementation of `ai_v2.m`, not a MATLAB run).
+
 ## What's not covered yet
 
-`ai_v2.m`, `BPfitres_v1.m`, and `kreservoir_v15.m` have no tests yet -
-these are the better candidates for synthetic-input unit tests, since
-they're pure numerical functions with no file I/O. `bpp_Res2.m` itself
-isn't tested (it's a script with GUI dialogs and side effects, not a
-function) - splitting it into functions would make that practical.
+`BPfitres_v1.m` and `kreservoir_v15.m` have no tests yet - these are the
+better remaining candidates for synthetic-input unit tests, since they're
+pure numerical functions with no file I/O. `bpp_Res2.m` itself isn't
+tested (it's a script with GUI dialogs and side effects, not a function) -
+splitting it into functions would make that practical.
 
 ## A note on these specific tests
 
